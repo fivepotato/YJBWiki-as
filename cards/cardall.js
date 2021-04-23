@@ -136,7 +136,7 @@ const MEMBER_NAMES_CN = {1:'高坂穗乃果',3:'南小鸟',2:'绚濑绘里',4:'�
             }else{
                 switch (card.id.toString()[0]+card.id.toString()[5]+card.slots.toString()){
                     case '112':case '123':case '133':gepf = '初始卡';break;
-                    case '511':gepf = '卡池卡';break;
+                    case '512':gepf = '卡池卡';break;
                     case '223':case '323':case '423':
                         if(card.parm_sum_raw > sr_parm_sum){
                             sr_parm_sum = card.parm_sum_raw;
