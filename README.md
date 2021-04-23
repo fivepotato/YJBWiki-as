@@ -16,5 +16,6 @@ It's a little embarrassing that I don't really know how to push this, so I uploa
 
 ### Next
 
+* 公告存档（对卡片数据会有用）
 * 卡片数据（分角色）
 * 小剧场存档
