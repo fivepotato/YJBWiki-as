@@ -1,5 +1,7 @@
 const sqlite = require('sqlite3');
 const util = require('util');
+const fs = require('fs');
+const format = require('string-format');
 const masterdata = new sqlite.Database('../masterdata.db',(err)=>{
     if(err)console.error(err);
 });
@@ -8,17 +10,64 @@ const dictionary_ja_k = new sqlite.Database('../dictionary_ja_k.db',(err)=>{
 })
 masterdata.ALL = util.promisify(masterdata.all);
 dictionary_ja_k.GET = util.promisify(dictionary_ja_k.each);
+const DIR_TEMPLATE = './卡片数据_format.txt';
+const DIR_OUT = './卡片数据.txt';
 
 //active/passive/lesson/accessory/glive/gwave/gnote->trigger_type{0},trigger_prob{1},condition1{2},condition2{3}
 //skill->target1{4},effect1{5},target2{11},effect2{12}
 //skill_effect->effect_type{6},effect_value{7},calc_type{8},finish_type{9},finish_value{10}
-const skilldescription = (effect_type)=>{
-    switch (effect_type){
-        case 0:'No effect.';break;
-        case 1:'Gain {7} Voltage.'
+const skilldescription = (effect_type,effect_value,calc_type)=>{
+    //calc_type {0}effect_value {2}finish type/finish_value {1}trigger_type/trigger_prob/condition1/condition2 {3}target1/target2
+    //non-stat {0}{1}
+    //stat {0}{1}{2}{3} or {0}{1}{2}
+    //const condition,affects;
+    switch (effect_type*10+calc_type){
+        case 11:case 12:return 'No effect.';
+        case 21:return {'str':`gain ${effect_value} Voltage`,'condition':true,'affects':false};
+        case 31:return {'str':`gain ${effect_value} SP Gauge`,'condition':true,'affects':false};
+        case 41:return {'str':`gain ${effect_value} Shield`,'condition':true,'affects':false};
+        case 51:return {'str':`restore ${effect_value} Stamina`,'condition':true,'affects':false};
+        case 61:return {'str':`reduce Stamina Damage by ${effect_value/100}%{1}`,'condition':true,'affects':false};
+        case 71:return {'str':`reduce Stamina Damage proportional to current Combo (Max ${effect_value/100} at 150){1}`,'condition':true,'affects':false};
+        case 81:return {'str':`increase Combo by ${effect_value}`,'condition':true,'affects':false};
+
+        //passive skills
+        case 92:return {'str':`increase base Stamina by ${effect_value/100}%`,'condition':false,'affects':true};
+        case 102:return {'str':`increase base Appeal by ${effect_value/100}%`,'condition':false,'affects':true};
+        case 112:return {'str':`increase base Technique by ${effect_value/100}%`,'condition':false,'affects':true};
+        case 122:return {'str':`base SP Gauge gained from Appeal increases by ${effect_value/100}%`,'condition':false,'affects':true};
+        case 131:return {'str':`increase base Skill Activation Rate by ${effect_value/100}%(A)`,'condition':false,'affects':true};
+        case 141:return {'str':`increase base Critical Rate by ${effect_value/100}%(A)`,'condition':false,'affects':true};
+        case 151:return {'str':`increase base Critical Power by ${effect_value/100}%(A)`,'condition':false,'affects':true};
+        case 161:return {'str':`increase base Type Effect by ${effect_value/100}%(A)`,'condition':false,'affects':true};
+
+        case 171:return {'str':`increase Appeal by ${effect_value}{1}`,'condition':true,'affects':true};
+        case 172:return {'str':`increase Appeal by ${effect_value/100}%{1}`,'condition':true,'affects':true};
+        case 173:return {'str':`increase Appeal by ${effect_value/100}%(special){1}`,'condition':true,'affects':true};
+        case 182:return {'str':`Voltage gained from Appeal increases by ${effect_value/100}%{1}`,'condition':true,'affects':true};
+        case 192:return {'str':`SP Gauge gained from Appeal increases by ${effect_value/100}%{1}`,'condition':true,'affects':true};
+        case 201:return {'str':`increase Critical Rate by ${effect_value/100}%(A){1}`,'condition':true,'affects':true};
+        case 211:return {'str':`increase Critical Power by ${effect_value/100}%(A){1}`,'condition':true,'affects':true};
+        case 221:return {'str':`increase Skill Activation Rate by ${effect_value/100}%(A){1}`,'condition':true,'affects':true};
+        //ah?
+        case 231:return {'str':`Voltage gained from{0} SP Skill increases by ${effect_value}{1}`,'condition':true,'affects':false};
+        case 232:return {'str':`Voltage gained from{0} SP Skill increases by ${effect_value/100}%{1}`,'condition':true,'affects':false};
+        case 251:return {'str':`Voltage gained from{0} SP SKill increases by ${effect_value/100}% of own Appeal`,'condition':true,'affects':false};
+        case 262:return {'str':`increase base Appeal by ${effect_value/100}%`,'condition':true,'affects':false};//until the Live show ends
+        case 282:return {'str':`increase base Appeal proportional to current Stamina (Max ${effect_value/100}%)`,'condition':true,'affects':false};
+
     }
 }
-'Increase Appeal by 5% until the Live Show ends.\nCondition: On Song Start,30% Chance\nAffects:Voltage Types'
+//2: ...for 5 Notes
+//7: ...until next SP Skill
+//8: ...until a Strategy Switch
+//1: ...until the Live Show ends
+//4: ...until the Appeal Chance ends
+//[[Increase base Appeal by]]
+'Voltage gained from next SP Skill increases by 1.5% of own Appeal.';
+'Appeal decreases by 50% until a Strategy Switch.'
+'Gain 25% of own Appeal as Voltage, and increase Appeal by 8% for 5 Notes.\nCondition: On own Appeal, 12% chance\nAffects:Same Strategy'
+'Increase Appeal by 5% until the Live Show ends.\nCondition: On Song Start,30% Chance\nAffects:Voltage Types';
 function base95(str) {
     let integer = 0;
     for (let digit of str) {
@@ -35,7 +84,10 @@ async function getdic(key,is_filename){
                 resolve(undefined);
                 console.error(err);
             }
-            if(row[0] === undefined)resolve('[function getdic]KEY NOT FOUND');
+            if(row[0] === undefined){
+                console.error(`[function getdic]k.key:${key} NOT FOUND`);
+                resolve('[function getdic]KEY NOT FOUND');
+            }
             else {
                 if(row[0].message.indexOf('\n')!==-1)row[0].message = row[0].message.split('\n').join();
                 if(is_filename){
@@ -122,13 +174,16 @@ const MEMBER_NAMES_CN = {1:'高坂穗乃果',3:'南小鸟',2:'绚濑绘里',4:'�
     //gacha event party fes
     Promise.all(actions).then((cards)=>{
         let file_out = new String();
-        //console.log(new Date().now().toString());
+
+        const date = new Date().toString().split(' ');
+        const date_string = `${date[3]}年${{'Jan':1,'Feb':2,'Mar':3,'Apr':4,'May':5,'Jun':6,'Jul':7,'Aug':8,'Sep':9,'Oct':10,'Nov':11,'Dec':12}[date[1]]}月${date[2]}日`;
+
         let sr_parm_sum = 16000,ur_parm_sum = 26000;
         cards.sort((a,b)=>{return a.no-b.no});
         for(card of cards){
             //there are some unexpected aspects that reminding you +1500&+500 is really ugly.
-            if(card.id === 424)sr_parm_sum = 18700;ur_parm_sum = 30500;
-            if(card.id === 434)sr_parm_sum = 19300;ur_parm_sum = 31500;
+            if(card.id === 424){sr_parm_sum = 18700;ur_parm_sum = 30500;}
+            if(card.id === 434){sr_parm_sum = 19300;ur_parm_sum = 31500;}
             let gepf;
             //there are some unexpected aspects that reminding you nijigasaki2 is really ugly too.
             if(card.no >= 284 && card.no <= 286){
@@ -161,8 +216,11 @@ const MEMBER_NAMES_CN = {1:'高坂穗乃果',3:'南小鸟',2:'绚濑绘里',4:'�
                     default:
                 }
             }
-            file_out += card.str.split('{0}').join(gepf) + '\n';
+            file_out += card.str.split('{0}').join(gepf)+ '\n';
+            //console.log(sr_parm_sum,ur_parm_sum,gepf,card.str);
         }
-        console.log(file_out)
+        //writefile
+        const template = fs.readFileSync(DIR_TEMPLATE);
+        fs.writeFileSync(DIR_OUT,format(template.toString(),date_string,cards.length,file_out));
     })
 })()
