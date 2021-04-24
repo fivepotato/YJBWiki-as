@@ -19,5 +19,5 @@ It's a little embarrassing that I don't really know how to push this, so I uploa
 
 * 公告存档（对 ~~卡片数据~~ 出卡循环会有用）
 * 卡片数据（分角色）
-* 新版本卡片数据
+* 新版本卡片数据（恢复排序功能，悬停查看技能效果）
 * 小剧场存档
