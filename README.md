@@ -8,6 +8,7 @@ It's a little embarrassing that I don't really know how to push this, so I uploa
 * 星空凛/Unreleased charts
 * 讨论:星空凛
 * Live数据（分曲目）
+* 卡片数据（总）
 
 ### Converted (Very Slow)
 
@@ -16,6 +17,7 @@ It's a little embarrassing that I don't really know how to push this, so I uploa
 
 ### Next
 
-* 公告存档（对卡片数据会有用）
+* 公告存档（对~~~卡片数据~~~出卡循环会有用）
 * 卡片数据（分角色）
+* 新版本卡片数据
 * 小剧场存档
