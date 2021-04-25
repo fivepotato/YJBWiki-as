@@ -309,7 +309,7 @@ new Promise(async (resolve,reject)=>{
                     actions.push(Promise.all(actions_ability_1));
 
                     let actions_ability_2 = new Array();
-                    for(let card_passive_skill_2 of results[5])
+                    for(let card_passive_skill_2 of results[6])
                         actions_ability_2.push(masterdata.ALL(`select * from m_passive_skill where id = ${card_passive_skill_2.passive_skill_master_id}`));
                     actions.push(Promise.all(actions_ability_2));
                     
