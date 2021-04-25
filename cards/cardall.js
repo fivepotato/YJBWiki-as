@@ -12,6 +12,7 @@ masterdata.ALL = util.promisify(masterdata.all);
 dictionary_ja_k.GET = util.promisify(dictionary_ja_k.each);
 const DIR_TEMPLATE = './卡片数据_format.txt';
 const DIR_OUT = './卡片数据.txt';
+const PATH_RELEASE_DATE = './notice_card.json';
 
 //active/passive/lesson/accessory/glive/gwave/gnote->trigger_type{0},trigger_prob{1},condition1{2},condition2{3}
 //skill->target1{4},effect1{5},target2{11},effect2{12}
@@ -85,7 +86,7 @@ async function getdic(key,is_filename){
                 console.error(err);
             }
             if(row[0] === undefined){
-                console.error(`[function getdic]k.key:${key} NOT FOUND`);
+                console.error(`[function getdic]k.key:${key} NOT FOUND, please check your dictionary_ja_k.db is up to date.`);
                 resolve('[function getdic]KEY NOT FOUND');
             }
             else {
@@ -102,9 +103,51 @@ async function getdic(key,is_filename){
     })
 }
 
+//get all skill data from m_skill->m_skill_effect
+async function getskill(obj,skill_id_key){
+    return new Promise((res,rej)=>{
+        masterdata.all(`select * from m_skill where id = ${obj[skill_id_key]}`,(err,sks)=>{
+            if(err)console.error(err);
+            if(sks[0]===undefined)rej(`ERROR:\tskill_id:${obj[skill_id_key]}\tNo match in m_skill`);
+            res(sks[0]);
+        })
+    }).then((skill)=>{
+        return Promise.all([new Promise(res=>{
+            res(skill);
+        }),new Promise((res,rej)=>{
+            masterdata.all(`select * from m_skill_effect where id = ${skill.skill_effect_master_id1}`,(err,skes)=>{
+                if(err)console.error(err);
+                if(skes[0]===undefined)rej(`ERROR:\tskill_effect_id:${skill.skill_effect_master_id1}\tNo match in m_skill_effect`);
+                res(skes[0]);
+            })
+        }),new Promise((res,rej)=>{
+            if(skill.skill_effect_master_id2 === null)res(null);
+            masterdata.all(`select * from m_skill_effect where id = ${skill.skill_effect_master_id2}`,(err,skes)=>{
+                if(err)console.error(err);
+                if(skes[0]===undefined)rej(`ERROR:\tskill_effect_id:${skill.skill_effect_master_id2}\tNo match in m_skill_effect`);
+                res(skes[0]);
+            })
+        })])
+    }).then(results=>{
+        return new Promise(res=>{
+            res({'skill':results[0],'skill_effect_1':results[1],'skill_effect_2':results[2]});
+        })
+    })
+}
+
+//UTC+9
+function dateymdstr(ts,offset){
+    if(!offset)offset=9;
+    const date = new Date(ts+offset*3600*1000).toUTCString().split(' ');
+    return `${date[3]} 年 ${{'Jan':1,'Feb':2,'Mar':3,'Apr':4,'May':5,'Jun':6,'Jul':7,'Aug':8,'Sep':9,'Oct':10,'Nov':11,'Dec':12}[date[2]]} 月 ${date[1]} 日`;
+}
+
+
 const MEMBER_NAMES_CN = {1:'高坂穗乃果',3:'南小鸟',2:'绚濑绘里',4:'园田海未',5:'星空凛',6:'西木野真姬',7:'东条希',8:'小泉花阳',9:'矢泽妮可',101:'高海千歌',103:'松浦果南',102:'樱内梨子',104:'黑泽黛雅',105:'渡边曜',106:'津岛善子',107:'国木田花丸',108:'小原鞠莉',109:'黑泽露比',201:'上原步梦',202:'中须霞',203:'樱坂雫',204:'朝香果林',205:'宫下爱',206:'近江彼方',207:'优木雪菜',208:'艾玛·维尔德',209:'天王寺璃奈',210:'三船栞子',211:'钟岚珠',212:'米娅'};
 
-(async ()=>{
+const RELEASE_DATE = JSON.parse(fs.readFileSync(PATH_RELEASE_DATE));
+
+new Promise(async (resolve,reject)=>{
     let actions = new Array();
     const M_CARD = await masterdata.ALL('select id,member_m_id,school_idol_no,card_rarity_type,card_attribute,role,member_card_thumbnail_asset_path,training_tree_m_id,sp_point,passive_skill_slot,max_passive_skill_slot from m_card');
     for(let card of M_CARD){
@@ -121,9 +164,8 @@ const MEMBER_NAMES_CN = {1:'高坂穗乃果',3:'南小鸟',2:'绚濑绘里',4:'�
                 return masterdata.ALL(`select training_content_type,value from m_training_tree_card_param where id = ${tree[0].training_tree_card_param_m_id}`);
             }),
             //4
-            //skill_level,name not necessary
             //this will get 5 rows(lv.1/2/3/4/5)
-            masterdata.ALL(`select skill_level,name,active_skill_master_id from m_card_active_skill where card_master_id = ${card.id}`).then((card_active_skills)=>{
+            masterdata.ALL(`select skill_level,active_skill_master_id from m_card_active_skill where card_master_id = ${card.id}`).then((card_active_skills)=>{
                 let actions = new Array();
                 for(let a of card_active_skills){
                     actions.push(masterdata.ALL(`select thumbnail_asset_path from m_active_skill where id = ${a.active_skill_master_id}`));
@@ -175,11 +217,14 @@ const MEMBER_NAMES_CN = {1:'高坂穗乃果',3:'南小鸟',2:'绚濑绘里',4:'�
     Promise.all(actions).then((cards)=>{
         let file_out = new String();
 
-        const date = new Date().toString().split(' ');
-        const date_string = `${date[3]}年${{'Jan':1,'Feb':2,'Mar':3,'Apr':4,'May':5,'Jun':6,'Jul':7,'Aug':8,'Sep':9,'Oct':10,'Nov':11,'Dec':12}[date[1]]}月${date[2]}日`;
+        
+        cards.sort((a,b)=>{return a.no-b.no});
+        //get the last notice date as text
+        if(RELEASE_DATE[cards[cards.length-1].no] === undefined)throw new Error('probably the RELEASE_DATE is not up to date, cannot get the newest update time.');
+        const date_string = dateymdstr(RELEASE_DATE[cards[cards.length-1].no].released);
+        
 
         let sr_parm_sum = 16000,ur_parm_sum = 26000;
-        cards.sort((a,b)=>{return a.no-b.no});
         for(card of cards){
             //there are some unexpected aspects that reminding you +1500&+500 is really ugly.
             if(card.id === 424){sr_parm_sum = 18700;ur_parm_sum = 30500;}
@@ -218,9 +263,177 @@ const MEMBER_NAMES_CN = {1:'高坂穗乃果',3:'南小鸟',2:'绚濑绘里',4:'�
             }
             file_out += card.str.split('{0}').join(gepf)+ '\n';
             //console.log(sr_parm_sum,ur_parm_sum,gepf,card.str);
+            card.gepf = gepf;//for next step: card data (character)
         }
         //writefile
         const template = fs.readFileSync(DIR_TEMPLATE);
         fs.writeFileSync(DIR_OUT,format(template.toString(),date_string,cards.length,file_out));
+        console.log('card data (all) generation completed.');
+        resolve(cards);
     })
-})()
+}).then(gepf=>{
+    for(let chara in MEMBER_NAMES_CN){
+        masterdata.ALL(`select id,school_idol_no,card_rarity_type,card_attribute,role,training_tree_m_id,passive_skill_slot,max_passive_skill_slot from m_card where member_m_id=${chara}`).then((cards)=>{
+            for(let card of cards){
+                let info = new Object();
+                let level = ((rarity)=>{switch(rarity){case 10:return 40;case 20:return 60;case 30:return 80;default:console.error(`unexpected rarity type ${rarity}`)}})(card.card_rarity_type);
+                Promise.all([
+                    masterdata.ALL(`select * from m_card_appearance where card_m_id = ${card.id} order by appearance_type`),
+                    masterdata.ALL(`select * from m_card_parameter where card_m_id = ${card.id} and (level = 1 or level = ${level}) order by level`),
+                    masterdata.ALL(`select * from m_card_awaken_parameter where card_master_id = ${card.id}`),
+                    masterdata.ALL(`select * from m_training_tree where id = ${card.training_tree_m_id}`),
+                    masterdata.ALL(`select * from m_card_active_skill where card_master_id = ${card.id} order by skill_level`),
+                    masterdata.ALL(`select * from m_card_passive_skill_original where card_master_id = ${card.id} and position = 1 order by skill_level`),
+                    masterdata.ALL(`select * from m_card_passive_skill_original where card_master_id = ${card.id} and position = 2 order by skill_level`),
+                    masterdata.ALL(`select suit_m_id from m_training_tree_card_suit where card_m_id = ${card.id}`),
+                    masterdata.ALL(`select content_id from m_training_tree_progress_reward where card_master_id = ${card.id} and content_type = 7`)
+                ]).then(results=>{
+                    info.appearance = results[0];
+                    info.parameter = results[1];
+                    info.awaken_parameter = results[2][0];
+                    //info.card_active_skill = results[4];
+                    //info.card_passive_skill_original_1 = results[5];
+                    //info.card_passive_skill_original_2 = results[6];
+                    //info.suit_id_1 = results[7][0].suit_m_id;
+                    //info.suit_id_2 = results[8][0].content_id;
+                    let actions = new Array();
+                    
+                    let actions_skill = new Array();
+                    for(let card_active_skill of results[4])
+                        actions_skill.push(masterdata.ALL(`select * from m_active_skill where id = ${card_active_skill.active_skill_master_id}`));
+                    actions.push(Promise.all(actions_skill));
+
+                    let actions_ability_1 = new Array();
+                    for(let card_passive_skill_1 of results[5])
+                        actions_ability_1.push(masterdata.ALL(`select * from m_passive_skill where id = ${card_passive_skill_1.passive_skill_master_id}`));
+                    actions.push(Promise.all(actions_ability_1));
+
+                    let actions_ability_2 = new Array();
+                    for(let card_passive_skill_2 of results[5])
+                        actions_ability_2.push(masterdata.ALL(`select * from m_passive_skill where id = ${card_passive_skill_2.passive_skill_master_id}`));
+                    actions.push(Promise.all(actions_ability_2));
+                    
+                    actions.push(masterdata.ALL(`select * from m_training_tree_mapping where id = ${results[3][0].training_tree_mapping_m_id}`));
+
+                    actions.push(masterdata.ALL(`select * from m_training_tree_card_param where id = ${results[3][0].training_tree_card_param_m_id} order by training_content_no`));
+
+                    if(results[7][0])actions.push(masterdata.ALL(`select * from m_suit where id = ${results[7][0].suit_m_id}`));
+                    if(results[8][0])actions.push(masterdata.ALL(`select * from m_suit where id = ${results[8][0].content_id}`));
+
+                    return Promise.all(actions);
+                }).then(results=>{
+                    info.training_tree_card_param = results[1];
+                    info.active_skill = results[0];
+                    info.passive_skill_1 = results[1];
+                    info.passive_skill_2 = results[2];
+                    info.training_tree_card_param = results[4];
+                    //this is undefined if no suits
+                    info.suit_1 = results[5];
+                    info.suit_2 = results[6];
+                    let actions = new Array();
+
+                    let actions_0 = new Array();
+                    for(let active_skill of results[0])actions_0.push(getskill(active_skill[0],'skill_master_id'));
+                    actions.push(Promise.all(actions_0));
+
+                    let actions_1 = new Array();
+                    for(let passive_skill_1 of results[1])actions_1.push(getskill(passive_skill_1[0],'skill_master_id'));
+                    actions.push(Promise.all(actions_1));
+
+                    let actions_2 = new Array();
+                    for(let passive_skill_2 of results[2])actions_2.push(getskill(passive_skill_2[0],'skill_master_id'));
+                    actions.push(Promise.all(actions_2));
+
+                    actions.push(masterdata.ALL(`select * from m_training_tree_cell_content where id = ${results[3][0].training_tree_cell_content_m_id}`));
+
+                    return Promise.all(actions);
+                }).then(async results=>{
+                    info.skill_active = results[0];
+                    info.skill_passive_1 = results[1];
+                    info.skill_passive_2 = results[2];
+                    info.training_tree_cell_content = results[3];//.sort((a,b)=>{return a.required_grade-b.required_grade})
+                    //calculate 0~5 limit increase param
+                    let tree_param = [[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0]];
+                    for(let cell of info.training_tree_cell_content){
+                        switch (cell.training_tree_cell_type){
+                            //1root 2parm 4story 5idolize 9abili 7skill 3voice 8slot 6suit
+                            case 2:
+                                const cell_param = info.training_tree_card_param[cell.training_content_no - 1];//this may corrupt at any time in the future;
+                                switch (cell_param.training_content_type){
+                                    case 2: tree_param[cell.required_grade][1] += cell_param.value;break;
+                                    case 3: tree_param[cell.required_grade][0] += cell_param.value;break;
+                                    case 4: tree_param[cell.required_grade][2] += cell_param.value;break;
+                                }
+                                break;
+                            case 5:
+                                tree_param[cell.required_grade][0] += info.awaken_parameter.parameter2;
+                                tree_param[cell.required_grade][1] += info.awaken_parameter.parameter1;
+                                tree_param[cell.required_grade][2] += info.awaken_parameter.parameter3;
+                                break;
+                        }
+                    }
+                    tree_param[0][0] = info.parameter[1].appeal;
+                    tree_param[0][1] = info.parameter[1].stamina;
+                    tree_param[0][2] = info.parameter[1].technique;
+                    for(let i=1;i<tree_param.length;i++){
+                        tree_param[i][0]+=tree_param[i-1][0];
+                        tree_param[i][1]+=tree_param[i-1][1];
+                        tree_param[i][2]+=tree_param[i-1][2];
+                    }
+                    
+                    const critical_sense = tree_param[0][2]>tree_param[0][1]&&tree_param[0][2]>tree_param[0][0]?"是":"否";
+
+                    const line1 = `${card.school_idol_no}|${card.id}|${await getdic(info.appearance[0].card_name)}|${await getdic(info.appearance[1].card_name)}`;
+                    //may corrupt
+                    const line2 = `${MEMBER_NAMES_CN[chara]}|${card.card_attribute}|${card.role}|${dateymdstr(RELEASE_DATE[card.school_idol_no].released)}作为${gepf[card.school_idol_no-1].gepf}登场|${base95(info.appearance[0].image_asset_path)}|${base95(info.appearance[1].image_asset_path)}`;
+                    const line3 = `${info.parameter[0].appeal}|${tree_param[0][0]}|${tree_param[1][0]}|${tree_param[2][0]}|${tree_param[3][0]}|${tree_param[4][0]}|${tree_param[5][0]}`;
+                    const line4 = `${info.parameter[0].stamina}|${tree_param[0][1]}|${tree_param[1][1]}|${tree_param[2][1]}|${tree_param[3][1]}|${tree_param[4][1]}|${tree_param[5][1]}`;
+                    const line5 = `${info.parameter[0].technique}|${tree_param[0][2]}|${tree_param[1][2]}|${tree_param[2][2]}|${tree_param[3][2]}|${tree_param[4][2]}|${tree_param[5][2]}`;
+                    const line6 = `${critical_sense}|${card.passive_skill_slot}|${card.max_passive_skill_slot}`;
+                    //Lv.5
+                    const line11_1 = `${info.active_skill[4][0].trigger_probability}|${info.skill_active[0].skill.skill_target_master_id1}|${info.skill_active[0].skill_effect_1.effect_type}|${info.skill_active[0].skill_effect_1.effect_type}|${info.skill_active[0].skill_effect_1.effect_value}|${info.skill_active[0].skill_effect_1.calc_type}|${info.skill_active[0].skill_effect_1.finish_type}|${info.skill_active[0].skill_effect_1.finish_value}|${info.skill_active[1].skill_effect_1.effect_value}|${info.skill_active[2].skill_effect_1.effect_value}|${info.skill_active[3].skill_effect_1.effect_value}|${info.skill_active[4].skill_effect_1.effect_value}`;
+                    const line11_2 = info.skill_active[0].skill_effect_2?`|${info.skill_active[0].skill.skill_target_master_id2}|${info.skill_active[0].skill_effect_2.effect_type}|${info.skill_active[0].skill_effect_2.effect_type}|${info.skill_active[0].skill_effect_2.effect_value}|${info.skill_active[0].skill_effect_2.calc_type}|${info.skill_active[0].skill_effect_2.finish_type}|${info.skill_active[0].skill_effect_2.finish_value}|${info.skill_active[1].skill_effect_2.effect_value}|${info.skill_active[2].skill_effect_2.effect_value}|${info.skill_active[3].skill_effect_2.effect_value}|${info.skill_active[4].skill_effect_2.effect_value}`:new String();
+                    const line11 = `${base95(info.active_skill[4][0].thumbnail_asset_path)}|${await getdic(info.active_skill[4][0].name)}|{{ActiveSkillDescription|${line11_1}${line11_2}}}`;
+                    //Lv.1
+                    const line12_1 = `${info.skill_passive_1[0].skill.skill_target_master_id1}|${info.skill_passive_1[0].skill_effect_1.effect_type}|${info.skill_passive_1[0].skill_effect_1.effect_type}|${info.skill_passive_1[0].skill_effect_1.effect_value}|${info.skill_passive_1[0].skill_effect_1.calc_type}|${info.skill_passive_1[0].skill_effect_1.finish_type}|${info.skill_passive_1[0].skill_effect_1.finish_value}|${info.skill_passive_1[1].skill_effect_1.effect_value}|${info.skill_passive_1[2].skill_effect_1.effect_value}|${info.skill_passive_1[3].skill_effect_1.effect_value}|${info.skill_passive_1[4].skill_effect_1.effect_value}`
+                    const line12_1_p = info.skill_passive_1[5]?`|${info.skill_passive_1[5].skill_effect_1.effect_value}|${info.skill_passive_1[6].skill_effect_1.effect_value}`:"||";
+                    let line12_2,line12_2_p = new String();
+                    if(info.skill_passive_1[0].skill_effect_2){
+                        line12_2 = `|${info.skill_passive_1[0].skill.skill_target_master_id2}|${info.skill_passive_1[0].skill_effect_2.effect_type}|${info.skill_passive_1[0].skill_effect_2.effect_type}|${info.skill_passive_1[0].skill_effect_2.effect_value}|${info.skill_passive_1[0].skill_effect_2.calc_type}|${info.skill_passive_1[0].skill_effect_2.finish_type}|${info.skill_passive_1[0].skill_effect_2.finish_value}|${info.skill_passive_1[1].skill_effect_2.effect_value}|${info.skill_passive_1[2].skill_effect_2.effect_value}|${info.skill_passive_1[3].skill_effect_2.effect_value}|${info.skill_passive_1[4].skill_effect_2.effect_value}`;
+                        if(info.skill_passive_1[5]){
+                            line12_2_p = `|${info.skill_passive_1[5].skill_effect_2.effect_value}|${info.skill_passive_1[6].skill_effect_2.effect_value}`;
+                        }
+                    }
+                    else line12_2 = new String();
+                    const line12 = `${base95(info.passive_skill_1[0][0].thumbnail_asset_path)}|${await getdic(info.passive_skill_1[0][0].name)}|{{PassiveSkillDescription1|${line12_1}${line12_1_p}${line12_2}${line12_2_p}}}`;
+                    //Lv.1
+                    let line13;
+                    if(!info.passive_skill_2[0])line13 = "||";
+                    else{
+                        const line13_1 = `${info.passive_skill_2[0].trigger_type}|${info.passive_skill_2.skill_condition_master_id1}|${info.passive_skill_2.skill_condition_master_id2?info.passive_skill_2.skill_condition_master_id2:new String()}|${info.passive_skill_2.trigger_probability}|${info.skill_passive_2[0].skill.skill_target_master_id1}|${info.skill_passive_2[0].skill_effect_1.effect_type}|${info.skill_passive_2[0].skill_effect_1.effect_type}|${info.skill_passive_2[0].skill_effect_1.effect_value}|${info.skill_passive_2[0].skill_effect_1.calc_type}|${info.skill_passive_2[0].skill_effect_1.finish_type}|${info.skill_passive_2[0].skill_effect_1.finish_value}`;
+                        const line13_2 = info.skill_passive_2[0].skill_effect_2?`|${info.skill_passive_2[0].skill.skill_target_master_id1}|${info.skill_passive_2[0].skill_effect_1.effect_type}|${info.skill_passive_2[0].skill_effect_1.effect_type}|${info.skill_passive_2[0].skill_effect_1.effect_value}|${info.skill_passive_2[0].skill_effect_1.calc_type}|${info.skill_passive_2[0].skill_effect_1.finish_type}|${info.skill_passive_2[0].skill_effect_1.finish_value}`:new String();
+                        line13 = `${base95(info.passive_skill_2[0][0].thumbnail_asset_path)}|${await getdic(info.passive_skill_2[0][0].name)}|{{PassiveSkillDescription2|${line13_1}${line13_2}}}`;
+                    }
+
+                    //suit
+                    //info.suit_1 is undefined if no suits
+                    let line14 = new String();
+                    if(info.suit_1){
+                        line14 += `${base95(info.suit_1[0].thumbnail_image_asset_path)}|${await getdic(info.suit_1[0].name)}`;
+                        if(info.suit_2){
+                            line14 += `|${base95(info.suit_2[0].thumbnail_image_asset_path)}|${await getdic(info.suit_2[0].name)}`;
+                        }
+                    }
+
+                    console.log(`{{CardDataFull|${line1}|${line2}|${line3}|${line4}|${line5}|${line6}|${line11}|${line12}|${line13}|${line14}}}`);
+                    
+                    //console.log(line11);
+                    //console.log(info.skill_active);
+                    //console.log(line11);
+                })
+            }
+        })
+    }
+},onrej=>{
+    console.log('the generation of card data (all) crashed, so the generation of (character) will not execute. ERROR:',onrej);
+})
