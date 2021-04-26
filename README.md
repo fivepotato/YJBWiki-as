@@ -14,7 +14,7 @@ It's a little embarrassing that I don't really know how to push this, so I uploa
 ### Converted (Very Slow)
 
 * Live数据（总）
-* 卡片数据（总）
+* ~~卡片数据（总）~~ 弃用，请使用上面的版本
 
 ### Next
 
