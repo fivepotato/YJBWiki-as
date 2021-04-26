@@ -14,6 +14,8 @@ const PATH_TEMPLATE_0 = './formats/卡片数据.txt';
 const PATH_OUT = './卡片数据.txt';
 const DIR_FORMAT = './formats/';
 const PATH_RELEASE_DATE = './notice_card.json';
+const PATH_TEMPLATE_1 = './formats/出卡循环.txt';
+const PATH_OUT_1 = './出卡循环.txt';
 
 //active/passive/lesson/accessory/glive/gwave/gnote->trigger_type{0},trigger_prob{1},condition1{2},condition2{3}
 //skill->target1{4},effect1{5},target2{11},effect2{12}
@@ -65,11 +67,6 @@ const skilldescription = (effect_type,effect_value,calc_type)=>{
 //8: ...until a Strategy Switch
 //1: ...until the Live Show ends
 //4: ...until the Appeal Chance ends
-//[[Increase base Appeal by]]
-'Voltage gained from next SP Skill increases by 1.5% of own Appeal.';
-'Appeal decreases by 50% until a Strategy Switch.'
-'Gain 25% of own Appeal as Voltage, and increase Appeal by 8% for 5 Notes.\nCondition: On own Appeal, 12% chance\nAffects:Same Strategy'
-'Increase Appeal by 5% until the Live Show ends.\nCondition: On Song Start,30% Chance\nAffects:Voltage Types';
 function base95(str) {
     let integer = 0;
     for (let digit of str) {
@@ -77,7 +74,6 @@ function base95(str) {
     }
     return integer;
 }
-
 async function getdic(key,is_filename){
     key = key.slice(2);
     return new Promise(resolve=>{
@@ -103,7 +99,6 @@ async function getdic(key,is_filename){
         });
     })
 }
-
 //get all skill data from m_skill->m_skill_effect
 async function getskill(obj,skill_id_key){
     return new Promise((res,rej)=>{
@@ -135,7 +130,6 @@ async function getskill(obj,skill_id_key){
         })
     })
 }
-
 //default UTC+9
 function dateymdstr(ts,offset){
     if(!offset)offset=9;
@@ -144,8 +138,7 @@ function dateymdstr(ts,offset){
 }
 
 
-const MEMBER_NAMES_CN = {1:'高坂穗乃果',3:'南小鸟',2:'绚濑绘里',4:'园田海未',5:'星空凛',6:'西木野真姬',7:'东条希',8:'小泉花阳',9:'矢泽妮可',101:'高海千歌',103:'松浦果南',102:'樱内梨子',104:'黑泽黛雅',105:'渡边曜',106:'津岛善子',107:'国木田花丸',108:'小原鞠莉',109:'黑泽露比',201:'上原步梦',202:'中须霞',203:'樱坂雫',204:'朝香果林',205:'宫下爱',206:'近江彼方',207:'优木雪菜',208:'艾玛·维尔德',209:'天王寺璃奈',210:'三船栞子',211:'钟岚珠',212:'米娅'};
-
+const MEMBER_NAMES_CN = {1:'高坂穗乃果',3:'南小鸟',2:'绚濑绘里',4:'园田海未',5:'星空凛',6:'西木野真姬',7:'东条希',8:'小泉花阳',9:'矢泽妮可',101:'高海千歌',103:'松浦果南',102:'樱内梨子',104:'黑泽黛雅',105:'渡边曜',106:'津岛善子',107:'国木田花丸',108:'小原鞠莉',109:'黑泽露比',201:'上原步梦',202:'中须霞',203:'樱坂雫',204:'朝香果林',205:'宫下爱',206:'近江彼方',207:'优木雪菜',208:'艾玛·维尔德',209:'天王寺璃奈',210:'三船栞子'/*,211:'钟岚珠',212:'米娅'*/};
 const RELEASE_DATE = JSON.parse(fs.readFileSync(PATH_RELEASE_DATE));
 
 new Promise(async (resolve,reject)=>{
@@ -210,7 +203,7 @@ new Promise(async (resolve,reject)=>{
             
             const template_string_result = `{{CardDataBasic|${card.school_idol_no}|${card.id}|${card_name_1}|${card_name_2}|${chara_name}|${card.card_attribute}|${card.role}|{0}|${base_parm[0]+training_parm[0]+awaken_parm[0]}|${base_parm[1]+training_parm[1]+awaken_parm[1]}|${base_parm[2]+training_parm[2]+awaken_parm[2]}|${active_icon}|${passive_icon_1}${passive_icon_2?`|${passive_icon_2}`:new Array()}}}`;
             const parm_sum_raw = base_parm[0]+training_parm[0]+base_parm[1]+training_parm[1]+base_parm[2]+training_parm[2];
-            return new Promise(res=>{res({'no':card.school_idol_no,'id':card.id,'str':template_string_result,'slots':card.max_passive_skill_slot,'parm_sum_raw':parm_sum_raw})})
+            return new Promise(res=>{res({'no':card.school_idol_no,'id':card.id,'str':template_string_result,'slots':card.max_passive_skill_slot,'parm_sum_raw':parm_sum_raw})});
         });
         actions.push(card_process);
     }
@@ -218,12 +211,10 @@ new Promise(async (resolve,reject)=>{
     Promise.all(actions).then((cards)=>{
         let file_out = new String();
 
-        
         cards.sort((a,b)=>{return a.no-b.no});
         //get the last notice date as text
         if(RELEASE_DATE[cards[cards.length-1].no] === undefined)throw new Error('probably the RELEASE_DATE is not up to date, cannot get the newest update time.');
         const date_string = dateymdstr(RELEASE_DATE[cards[cards.length-1].no].released);
-        
 
         let sr_parm_sum = 16000,ur_parm_sum = 26000;
         for(card of cards){
@@ -273,6 +264,9 @@ new Promise(async (resolve,reject)=>{
         resolve(cards);
     })
 }).then(async gepf=>{
+    //出卡循环
+    card_rotation(gepf);
+    //卡片数据分页面
     for(let chara in MEMBER_NAMES_CN){
         let cardtexts = new Array();
         let cards = await masterdata.ALL(`select id,school_idol_no,card_rarity_type,card_attribute,role,training_tree_m_id,passive_skill_slot,max_passive_skill_slot from m_card where member_m_id=${chara}`);
@@ -470,3 +464,69 @@ new Promise(async (resolve,reject)=>{
 },onrej=>{
     console.log('the generation of card data (all) crashed, so the generation of (character) will not execute. ERROR:',onrej);
 })
+
+
+//出卡循环
+function date6digitstr(ts,offset){
+    if(!offset)offset=9;
+    const date = new Date(ts+offset*3600*1000).toUTCString().split(' ');
+    return `${date[3].slice(2,4)}${{'Jan':'01','Feb':'02','Mar':'03','Apr':'04','May':'05','Jun':'06','Jul':'07','Aug':'08','Sep':'09','Oct':'10','Nov':'11','Dec':'12'}[date[2]]}${date[1]}`;
+}
+function card_rotation(cards/*{no:... id:... parm_sum_raw:... gepf:...} */){
+    let text_arrays = new Object();
+    for(let key in MEMBER_NAMES_CN){
+        text_arrays[key] = new Array();
+    }
+    for(let card of cards.sort((a,b)=>{return a.no-b.no})){
+        const parm_sum = parseInt((card.parm_sum_raw + 6)/50)*50;
+        let gepf_rotation = new String();
+
+        const rarity = parseInt(card.id.toString()[5]);
+        if(rarity > 1){
+            if(rarity === 3){
+                if(RELEASE_DATE[card.no].gepf){
+                    switch(RELEASE_DATE[card.no].gepf){
+                        case 'fes':gepf_rotation = '|fes';break;
+                        case 'pu':gepf_rotation = '|pu';break;
+                        case 'prt':gepf_rotation = '|pu';break;
+                    }
+                }
+                else switch(card.gepf){
+                    case 'fes卡':gepf_rotation = '|fes';break;
+                }
+            }
+            switch(card.id){
+                case 402073003: case 302072003: case 402073004: case 202072001:
+                gepf_rotation = '|wtf';break;
+            }
+            const time = parseInt(date6digitstr(RELEASE_DATE[card.no].released));
+            const obj = {'time':time,'rarity':rarity,'gepf':RELEASE_DATE[card.no].gepf,'parm_sum':parm_sum,'text':`{{CardRotationCell|${card.id}|${parm_sum}|${time}${gepf_rotation}}}`};
+            text_arrays[parseInt(card.id.toString().slice(2,5))].unshift(obj);
+        }
+    }
+    const time_limits = [190926,190926,191115,191231,200804,200804,200804,200804,201125,201125];
+    let round_line = new Array();
+    for(let round=0;;round++){
+        round_line[round] = new String();
+        let is_empty = true;
+        for(let key in text_arrays){
+            if(text_arrays[key][0] && (!time_limits[round] || text_arrays[key][text_arrays[key].length-1].time <= time_limits[round])){
+                round_line[round]+=text_arrays[key].pop().text;
+                is_empty = false;
+            }
+            else round_line[round]+="{{CardRotationCell}}";
+            round_line[round] += ' ';
+        }
+        if(is_empty)break;
+    }
+    let final = new String();
+    for(let round=0;round<round_line.length-1;round++){
+        if(round % 2 === 0)final += `=第${parseInt(round/2)}周期=`;
+        final += '\n';
+        final += round_line[round];
+        final += '\n\n';
+    }
+    const template = fs.readFileSync(PATH_TEMPLATE_1).toString();
+    fs.writeFileSync(PATH_OUT_1,format(template,final));
+    console.log('card rotation generation completed.')
+}
