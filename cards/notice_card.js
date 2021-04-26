@@ -72,8 +72,16 @@ for(i=203;i<212;i++)RELEASE_TS[i]={'released':new Date('2020-04-06T15:00:00.000+
 //栞R(虹fes公告 没有具体卡)
 for(i=284;i<286;i++)RELEASE_TS[i]={'released':new Date('2020-08-05T15:00:00.000+09:00').valueOf()};
 
+function update(card_m_id,date){
+    masterdata.ALL(`select school_idol_no from m_card where id = ${card_m_id}`).then(card=>{
+        const sin = card[0].school_idol_no;
+        if(!RELEASE_TS[sin] || RELEASE_TS[sin].released > date){
+            RELEASE_TS[sin] = {'released':date};
+        }
+    })
+}
 
-walk(DIR_NOTICES,(filePath,stat)=>{
+walk(DIR_NOTICES,async (filePath,stat)=>{
     const notice = JSON.parse(fs.readFileSync(filePath));
     if(notice.category===2 || notice.category===3){//Gacha or Event
         const text = notice.detail_text.dot_under_text;
@@ -84,21 +92,46 @@ walk(DIR_NOTICES,(filePath,stat)=>{
             //console.log(date,new Date(date));
             const texparts = text.split('<card value="');
             for(let i=1; i<texparts.length; i++){//the first part is not a card
-                masterdata.ALL(`select school_idol_no from m_card where id = ${texparts[i].slice(0,9)}`).then(card=>{
-                    const sin = card[0].school_idol_no;
-                    if(!RELEASE_TS[sin] || RELEASE_TS[sin].released > date){
-                        RELEASE_TS[card[0].school_idol_no] = {'released':date};
-                    }
-                })
+                update(texparts[i].slice(0,9),date);
+            }
+        }
+
+        //patch for part 1 and part 2 (event scouting)
+        if(notice.title.dot_under_text.indexOf('登場スクールアイドル紹介')!==-1){
+            console.log(new Date(notice.date*1000));
+            const texparts_2 = text.split('後編</color>');
+            const texparts_1 = text.split('前編</color>');
+            if(texparts_2[1]){
+                //sometimes there is a space and sometimes there isn't, so it is 12~23
+                const date = parseInt(texparts_2[1].slice(12,23))*1000;
+                if(date === NaN) throw new Error(texparts_2[1].slice(13,23));
+                console.log(date,new Date(date));
+                const m_id = texparts_2[1].split("<subtitle text=\"後編ガチャ登場スクールアイドル\" /><card value=\"")[1].slice(0,9);
+                update(m_id,date);
+            }
+            else {
+                console.log('unexpected notice type');
+                console.log(texparts_2);
+            }
+            if(texparts_1[1]){
+                //sometimes there is a space and sometimes there isn't
+                const date = parseInt(texparts_1[1].slice(12,23))*1000;
+                if(date === NaN) throw new Error(texparts_1[1].slice(13,23));
+                console.log(date,new Date(date));
+                const m_id = texparts_1[1].split("<subtitle text=\"前編ガチャ登場スクールアイドル\" /><card value=\"")[1].slice(0,9);
+                update(m_id,date);
+            }
+            else {
+                console.log('unexpected notice type');
+                console.log(texparts_1);
             }
         }
     }
 });
 
 setTimeout(()=>{
-    for(let key in  RELEASE_TS){
+    for(let key in RELEASE_TS){
         //console.log(key,new Date(RELEASE_TS[key].released));
     }
-    
     fs.writeFileSync(PATH_OUT,JSON.stringify(RELEASE_TS));
 },1000)
