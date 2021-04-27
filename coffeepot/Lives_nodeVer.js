@@ -498,7 +498,7 @@ async function searchdb(m_list){
         }
         STORY_OLD.push(row_old);
     }
-    const STORY_LINKAGE_TABLE = await masterdata.ALL('select * from m_story_linkage_cell_suggestion');
+    const STORY_LINKAGE_TABLE = await masterdata.ALL('select * from m_story_main_cell_transformation');
     let STORY_LINKAGE_OLD = new Array();
     for(let row of STORY_LINKAGE_TABLE){
         let row_old = new Array();
