@@ -15,10 +15,10 @@ const itemimg = JSON.parse(fs.readFileSync(DIR_IMG_MAPPING));
 
 //load database before analyzing, block
 let masterdata = new sqlite.Database(DIR_SRC_DATABASE_MASTERDATA,(err)=>{
-    if(err)console.error(err);
+    if(err)throw new Error(err);
 })
 let dictionary_ja_k = new sqlite.Database(DIR_SRC_DATABASE_DICTIONARY_JA_K,(err)=>{
-    if(err)console.error(err);
+    if(err)throw new Error(err);
 })
 //match the first one in dictionary_ja_k, return undefined on not found or error
 //will 
@@ -28,7 +28,7 @@ async function getdic(key,is_filename){
         dictionary_ja_k.all(`select message from m_dictionary where id = '${key}'`,(err,row)=>{
             if(err){
                 resolve(undefined);
-                console.error(err);
+                throw new Error(err);
             }
             if(row[0] === undefined)resolve('[function getdic]KEY NOT FOUND');
             else {
@@ -55,7 +55,7 @@ function base95(str) {
 async function getskill(obj,skill_id_key){
     return new Promise((res,rej)=>{
         masterdata.all(`select * from m_skill where id = ${obj[skill_id_key]}`,(err,sks)=>{
-            if(err)console.error(err);
+            if(err)throw new Error(err);
             if(sks[0]===undefined)rej(`ERROR:\tskill_id:${obj[skill_id_key]}\tNo match in m_skill`);
             res(sks[0]);
         })
@@ -64,14 +64,14 @@ async function getskill(obj,skill_id_key){
             res(skill);
         }),new Promise((res,rej)=>{
             masterdata.all(`select * from m_skill_effect where id = ${skill.skill_effect_master_id1}`,(err,skes)=>{
-                if(err)console.error(err);
+                if(err)throw new Error(err);
                 if(skes[0]===undefined)rej(`ERROR:\tskill_effect_id:${skill.skill_effect_master_id1}\tNo match in m_skill_effect`);
                 res(skes[0]);
             })
         }),new Promise((res,rej)=>{
             if(skill.skill_effect_master_id2 === null)res(null);
             masterdata.all(`select * from m_skill_effect where id = ${skill.skill_effect_master_id2}`,(err,skes)=>{
-                if(err)console.error(err);
+                if(err)throw new Error(err);
                 if(skes[0]===undefined)rej(`ERROR:\tskill_effect_id:${skill.skill_effect_master_id2}\tNo match in m_skill_effect`);
                 res(skes[0]);
             })
@@ -92,7 +92,7 @@ async function chartreplace(d){
             chart = JSON.parse(fs.readFileSync(`${DIR_SRC_CHARTS}${d.live_difficulty_id}.json`));
         }catch(e){
             //TODO:(1<->4<->5)<->3:compare wave and ???
-            if(d.unlock_pattern === 9){
+            if(d.unlock_pattern === 9 || d.live_difficulty_id.toString()[0] === '2'){
                 res(null)
             }
             //TODO:(1<->4<->5)<->2:remove AC vo/dmg
@@ -104,6 +104,7 @@ async function chartreplace(d){
                     if(d.unlock_pattern === 5 || rep.unlock_pattern === 5){
                         if(d.live_difficulty_type !== 30)continue;
                     }
+                    if(rep.live_difficulty_id.toString()[0] === '2')continue;
                     try{
                         chart = JSON.parse(fs.readFileSync(`${DIR_SRC_CHARTS}${rep.live_difficulty_id}.json`));
                     }catch(e){
@@ -150,6 +151,8 @@ async function chartcomparison(d){
                         if(cmpchts[i].live_notes[j].call_time !== cmpchts[0].live_notes[k].call_time)break;
                         j++;k++;
                     }
+                    while(cmpchts[i].live_notes[j] && cmpchts[i].live_notes[j].note_type > 3)j++;
+                    while(cmpchts[0].live_notes[k] && cmpchts[0].live_notes[k].note_type > 3)k++;
                     if(cmpchts[i].live_notes[j] || cmpchts[0].live_notes[k])continue;
                     else{
                         res(((dif)=>{switch(dif){case 10:return '初级';case 20:return '中级';case 30:return '上级';case 35:return '上级+';default:return 'ERROR_DIFFICULTY_TYPE'}})(cmps[i].live_difficulty_type));
@@ -247,14 +250,14 @@ async function story_dlp_epilogs(unlock_pat,live_diff_id){
 }
 //#main
 masterdata.each('select distinct music_id,is_2d_live,name,jacket_asset_path,live_member_mapping_id,member_group from m_live',(err,music)=>{
-    console.log(music);
+    //console.log(music);
     let wikitext_header = new String();
     Promise.all([
         getdic(music.name).then((song_name)=>{//dictionary->song_name
             wikitext_header = `= 歌曲基本信息 =\n\n<ASImg id=${base95(music.jacket_asset_path)} w=256/>\n\n<strong>歌曲名称</strong>：{{ja|${song_name}}}\n\n<strong>所属团队</strong>：${((name)=>{switch (name){case 1:return"μ's";case 2:return"Aqours";case 3:return"虹咲学园学园偶像同好会";case 4:return"Liella!";default:return`ERROR GROUP ${name}`}})(music.member_group)}\n\n<strong>是否有3D MV</strong>：${music.is_2d_live===1?"无":"有"}\n\n<strong>演唱者站位和衣装</strong>：\n\n`;
             return Promise.all([new Promise((res,rej)=>{
                 masterdata.all(`select mapping_id,position,member_master_id,is_center,card_position,suit_master_id from m_live_member_mapping where mapping_id = ${music.live_member_mapping_id} order by position`,(err,mapping)=>{
-                    if(err)console.error(err);
+                    if(err)throw new Error(err);
                     if(mapping[0]===undefined)console.error(`mapping ${music.live_member_mapping_id} not found`);
                     //get all suit thumbnails
                     let actions = new Array();
@@ -281,12 +284,13 @@ masterdata.each('select distinct music_id,is_2d_live,name,jacket_asset_path,live
                 })
             }), new Promise((res,rej)=>{
                 masterdata.all(`select mapping_id,position,member_master_id,is_center,card_position,suit_master_id from m_live_override_member_mapping where mapping_id = ${music.live_member_mapping_id} order by position`,(err,mapping_override)=>{
-                    if(err)console.error(err);
+                    if(err)throw new Error(err);
                     //no override match
                     if(mapping_override[0]===undefined)res(null);
                     //Shioriko
                     for(let member of mapping_override){
                         if(member.mapping_id === 12034 && member.member_master_id === 210)member.suit_master_id = 102102001;
+                        //if(member.mapping_id === 12053 && member.member_master_id === 210)member.suit_master_id = 啥啥啥;
                     }
                     //get all suit thumbnails
                     let actions = new Array();
@@ -367,8 +371,8 @@ masterdata.each('select distinct music_id,is_2d_live,name,jacket_asset_path,live
             contents += '\n\n'+wikitext_diffs[i].text;i++;
         }
         getdic(music.name,true).then((file_name)=>{
-            if(is_fullfilled && i > 0)fs.writeFile(`${DIR_OUT_CHARTTEXT_FULLFILLED}${file_name}.txt`,header+contents,'utf-8',(err)=>{if(err)console.error(err)});
-            else fs.writeFile(`${DIR_OUT_CHARTTEXT_NOT_FULLFILLED}${file_name}.txt`,header+contents,'utf-8',(err)=>{if(err)console.error(err)});
+            if(is_fullfilled && i > 0)fs.writeFile(`${DIR_OUT_CHARTTEXT_FULLFILLED}${file_name}.txt`,header+contents,'utf-8',(err)=>{if(err)throw new Error(err)});
+            else fs.writeFile(`${DIR_OUT_CHARTTEXT_NOT_FULLFILLED}${file_name}.txt`,header+contents,'utf-8',(err)=>{if(err)throw new Error(err)});
         })
     });
 })
@@ -400,11 +404,11 @@ function walk_all_difficulty(music_id){
         }
         masterdata.all(`select live_id from m_live where music_id=${music_id}`,(err,musics)=>{
             max_phase = musics.length;
-            if(err)console.error(err);
+            if(err)throw new Error(err);
             for(let music of musics){
                 masterdata.all(`select live_difficulty_id,live_id,live_difficulty_type,unlock_pattern,default_attribute,recommended_score,recommended_stamina,consumed_lp,reward_user_exp,judge_id,bottom_technique,additional_drop_decay_technique,reward_base_love_point,evaluation_s_score,evaluation_a_score,evaluation_b_score,evaluation_c_score,stamina_voltage_group_id,combo_voltage_group_id,difficulty_const_master_id from m_live_difficulty where live_id = ${music.live_id}`,(err,difficulties)=>{
                     pushcounter(difficulties.length);
-                    if(err)console.error(err);
+                    if(err)throw new Error(err);
                     for(let difficulty of difficulties){
                         let wikitext_difficulty = new String();
                         let sort_key;
@@ -412,7 +416,7 @@ function walk_all_difficulty(music_id){
                             if(chart === null)console.log(`The chart ${difficulty.live_difficulty_id} has not been collected.`);
                             return Promise.all([new Promise((res,rej)=>{
                                 masterdata.all(`select * from m_live_difficulty_const where id = ${difficulty.difficulty_const_master_id}`,(err,consts)=>{
-                                    if(err)console.error(err);
+                                    if(err)throw new Error(err);
                                     if(consts[0] === undefined)console.error(`difficulty ${difficulty.live_difficulty_id} has no difficulty const`);
                                     res({'chart':chart, 'diff_const':consts[0]});
                                 })
