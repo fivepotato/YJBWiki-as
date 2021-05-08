@@ -110,7 +110,7 @@ new Promise((res,rej)=>{
     setTimeout(()=>{
         //bond_board_table
         if(cell_content.length != cell_bonus.length*5)console.error(`ERROR: ${cell_content.length} cells of bond but ${cell_bonus.length} layers.`);
-        let wikitable_bondboard = '{|class="wikitable" style="text-align:center" \n|-\n! rowspan="2" | 层数 !! rowspan="2" | 所需<br>绊等级 !! colspan="5" | 开启一个格子的消耗 !! colspan="6" | 加成\n|-\n! <ASCommonItem name="1700" w=40/> !! <ASImg id=77728 w=40/> !! <ASImg id=495947 w=40/> !! <ASImg id=428060 w=40/> !! <ASCommonItem name="1200" w=40/> !! colspan="3" | 属性加成 !! colspan="2" | 其他加成 !! 本层额外加成';
+        let wikitable_bondboard = '{|class="wikitable tsticky2" style="text-align:center" \n|-\n! rowspan="2" | 层数 !! rowspan="2" | 所需<br>绊等级 !! colspan="5" | 开启一个格子的消耗 !! colspan="6" | 加成\n|-\n! style="top:28px" | <ASCommonItem name="1700" w=40/> !! style="top:28px" | <ASImg id=77728 w=40/> !! style="top:28px" | <ASImg id=495947 w=40/> !! style="top:28px" | <ASImg id=428060 w=40/> !! style="top:28px" | <ASCommonItem name="1200" w=40/> !! colspan="3" style="top:28px" | 属性加成 !! colspan="2" style="top:28px" | 其他加成 !! style="top:28px" | 本层额外加成';
         cell_content.sort((a,b)=>{return a[0].member_love_panel_cell_master_id-b[0].member_love_panel_cell_master_id;});
         cell_bonus.sort((a,b)=>{return a[0].member_love_panel_master_id-b[0].member_love_panel_master_id;});
         for(let i in cell_bonus){
@@ -137,7 +137,7 @@ new Promise((res,rej)=>{
         let wikitable_ep_collection = {};
         for (let memid of config_enabled_members){
             episode_reward[memid.toString()].sort((a,b)=>{return a.story.story_no - b.story.story_no});
-            let wikitable_eprew = `{|class="wikitable" style="text-align:center"\n|-\n! 序号 !! 绊等级 !! 奖励`;
+            let wikitable_eprew = `{|class="wikitable tsticky mw-collapsible mw-collapsed" style="text-align:center"\n|-\n! 序号 !! 绊等级 !! 奖励`;
             for (let ep of episode_reward[memid.toString()]){
                 wikitable_eprew += `\n|-\n| ${ep.story.story_no} || ${ep.story.love_level} || ${ep.reward === null ? "" : item_episode(ep.reward.content_id,ep.reward.content_amount)}`;
             }
@@ -146,7 +146,7 @@ new Promise((res,rej)=>{
         }
 
         //bond level/reward
-        let wikitable_bondlevel = `{|class="wikitable tsticky" style="text-align:center"\n|-\n! 绊等级 !! 需要经验 !! 总经验 !! 绊加成 !! 获得奖励`;
+        let wikitable_bondlevel = `{|class="wikitable tsticky mw-collapsible mw-collapsed" style="text-align:center"\n|-\n! 绊等级 !! 需要经验 !! 总经验 !! 绊加成 !! 获得奖励`;
         bond_level.sort((a,b)=>{return a.love_level-b.love_level});
         let prev_love_points = 0;
         for(let bdb of bond_level){
