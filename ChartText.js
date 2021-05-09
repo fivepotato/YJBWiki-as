@@ -32,7 +32,7 @@ async function getdic(key,is_filename){
             }
             if(row[0] === undefined)resolve('[function getdic]KEY NOT FOUND');
             else {
-                if(row[0].message.indexOf('\n')!==-1)row[0].message = row[0].message.split('\n').join();
+                if(row[0].message.indexOf('\n')!==-1)row[0].message = row[0].message.split('\n').join('');
                 if(is_filename){
                     row[0].message = row[0].message.split('\\').join('%5C').split('/').join('%2F').split(':').join('%3A').split('*').join('%2A').split('?').join('%3F').split('"').join('%22').split('<').join('%3C').split('>').join('%3E').split('|').join('%7C');
                     row[0].message = row[0].message.split('&amp;').join('&').split('&apos;').join('\'');
