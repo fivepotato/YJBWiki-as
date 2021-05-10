@@ -201,7 +201,9 @@ function inverse_wavetext(str){
 async function story_dlp_epilogs(unlock_pat,live_diff_id){
     return new Promise((res,rej)=>{
         switch (unlock_pat){
-            case 1:case 2:case 3:case 4:res({'sort_key':parseInt(live_diff_id/100)});break;
+            case 1:case 2:case 3:case 4:
+                if(live_diff_id===11072101||live_diff_id===11072201||live_diff_id===11072301){rej(`Will skip HSN ${live_diff_id}`);return;}
+                res({'sort_key':parseInt(live_diff_id/100)});break;
             case 7:res({'sort_key':parseInt(live_diff_id/100/10)*10+50000+live_diff_id%10});break;
             case 5:case 8:rej(`Will skip SBL or intro chart ${live_diff_id}`);break;
             case 6://DLP
@@ -221,6 +223,9 @@ async function story_dlp_epilogs(unlock_pat,live_diff_id){
                 });
                 break;
             case 9://STORY
+                if(live_diff_id==32002301||live_diff_id==32003301||live_diff_id==32004301||live_diff_id==32005301||live_diff_id==32006301||live_diff_id==32007301||live_diff_id==32008301||live_diff_id==32009301||live_diff_id==32010301){
+                    res({'head':`2章10话`,'sort_key':302016});
+                }
                 masterdata.all(`select * from m_story_main_cell where live_difficulty_id = ${live_diff_id} or hard_live_difficulty_id = ${live_diff_id}`,(err,st)=>{
                     if(err)rej(err);
                     if(st[0])masterdata.all(`select * from m_story_main_cell where chapter_id = ${st[0].chapter_id}`,(err,chap)=>{
