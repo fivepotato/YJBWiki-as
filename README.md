@@ -21,5 +21,5 @@ It's a little embarrassing that I don't really know how to push this, so I uploa
 
 * 新版本出卡循环（直接显示卡片详细信息）
 * 新版本卡片数据（恢复排序功能，悬停查看技能效果）
-* 公告存档（对 ~~卡片数据~~ 出卡循环会有用）
+* 公告存档（对 ~~卡片数据~~ ~~出卡循环~~出卡循环解决了不知道有什么用）
 * 小剧场存档
