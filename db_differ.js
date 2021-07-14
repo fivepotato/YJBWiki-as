@@ -2,21 +2,13 @@ const sqlite = require('sqlite3');
 const util = require('util');
 const fs = require('fs');
 const DIR_DIFF = './diff_results/';
-const PATH_M_DB_OLD = './masterdata (32).db';
+const PATH_M_DB_OLD = './masterdata_old.db';
 const PATH_M_DB_NEW = './masterdata.db';
 
 const ERR_F = (err)=>{if(err)throw new Error(err)};
 
 const DIR_DIFF_CURRENT = `${DIR_DIFF}${new Date().valueOf()}/`;
 fs.mkdir(DIR_DIFF_CURRENT,ERR_F);
-
-const masterdata_old = new sqlite.Database(PATH_M_DB_OLD,ERR_F);
-masterdata_old.ALL = util.promisify(masterdata_old.all);
-//masterdata_old.EACH = util.promisify(masterdata_old.each);
-
-const masterdata_new = new sqlite.Database(PATH_M_DB_NEW,ERR_F);
-masterdata_new.ALL = util.promisify(masterdata_new.all);
-masterdata_new.EACH = util.promisify(masterdata_new.each);
 
 function obj_cmp(obj1,obj2){
     for(let key in obj2){
@@ -31,10 +23,21 @@ function key_obj_cmp(keys,obj1,obj2){
     return true;
 }
 
-new Promise(async resolve=>{
+const differ = async (PATH_M_DB_OLD, PATH_M_DB_NEW) =>{
+    
+    const masterdata_old = new sqlite.Database(PATH_M_DB_OLD,ERR_F);
+    masterdata_old.ALL = util.promisify(masterdata_old.all);
+
+    const masterdata_new = new sqlite.Database(PATH_M_DB_NEW,ERR_F);
+    masterdata_new.ALL = util.promisify(masterdata_new.all);
+
+    let isChanged = false;
+
     const table_list = await masterdata_new.ALL('select * from sqlite_master');
+    const actions = [];
     for(let table of table_list){
-        if(table.type === 'table')new Promise(async res=>{
+        if(table.type !== 'table')continue;
+        let p = new Promise(async res=>{
             //table structure check
             //console.log(table.name);
             const structure_old = await masterdata_old.ALL(`pragma table_info("${table.name}")`);
@@ -88,8 +91,6 @@ new Promise(async resolve=>{
                 }
             }
 
-
-
             const content_new = await masterdata_new.ALL(`select * from ${table.name}`);
             for(const row_new of content_new){
                 let sql = `select * from ${table.name}`;
@@ -125,6 +126,7 @@ new Promise(async resolve=>{
                 //if(table.name==='m_card')console.log(row_old,row_new);
             }
             if(outputstr != ''){
+                isChanged = true;
                 fs.writeFile(`${DIR_DIFF_CURRENT}${table.name}.txt`,outputstr,{'encoding':'utf-8'},()=>{});
                 let space = new String();
                 for(let i=0;i<64-table.name.length;i++)space+=' ';
@@ -132,5 +134,14 @@ new Promise(async resolve=>{
             };
             res();return;
         });
+        actions.push(p);
     }
-})
+    await Promise.all(actions);
+    return isChanged;
+}
+
+differ(PATH_M_DB_OLD, PATH_M_DB_NEW);
+
+module.exports = {
+    db_diff: differ,
+};
