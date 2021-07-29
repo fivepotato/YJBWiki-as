@@ -389,7 +389,7 @@ new Promise(async (resolve,reject)=>{
                 const line6 = `${critical_sense}|${card.passive_skill_slot}|${card.max_passive_skill_slot}`;
                 //Lv.5
                 const line11_1 = `${info.active_skill[4][0].trigger_probability}|${info.skill_active[0].skill.skill_target_master_id1}|${info.skill_active[0].skill_effect_1.effect_type}|${info.skill_active[0].skill_effect_1.effect_value}|${info.skill_active[0].skill_effect_1.calc_type}|${info.skill_active[0].skill_effect_1.finish_type}|${info.skill_active[0].skill_effect_1.finish_value}|${info.skill_active[1].skill_effect_1.effect_value}|${info.skill_active[2].skill_effect_1.effect_value}|${info.skill_active[3].skill_effect_1.effect_value}|${info.skill_active[4].skill_effect_1.effect_value}`;
-                const line11_2 = info.skill_active[0].skill_effect_2?`|${info.skill_active[0].skill.skill_target_master_id2}|${info.skill_active[0].skill_effect_2.effect_type}|${info.skill_active[0].skill_effect_2.effect_type}|${info.skill_active[0].skill_effect_2.effect_value}|${info.skill_active[0].skill_effect_2.calc_type}|${info.skill_active[0].skill_effect_2.finish_type}|${info.skill_active[0].skill_effect_2.finish_value}|${info.skill_active[1].skill_effect_2.effect_value}|${info.skill_active[2].skill_effect_2.effect_value}|${info.skill_active[3].skill_effect_2.effect_value}|${info.skill_active[4].skill_effect_2.effect_value}`:new String();
+                const line11_2 = info.skill_active[0].skill_effect_2?`|${info.skill_active[0].skill.skill_target_master_id2}|${info.skill_active[0].skill_effect_2.effect_type}|${info.skill_active[0].skill_effect_2.effect_value}|${info.skill_active[0].skill_effect_2.calc_type}|${info.skill_active[0].skill_effect_2.finish_type}|${info.skill_active[0].skill_effect_2.finish_value}|${info.skill_active[1].skill_effect_2.effect_value}|${info.skill_active[2].skill_effect_2.effect_value}|${info.skill_active[3].skill_effect_2.effect_value}|${info.skill_active[4].skill_effect_2.effect_value}`:new String();
                 const line11 = `${base95(info.active_skill[4][0].thumbnail_asset_path)}|${await getdic(info.active_skill[4][0].name)}|{{ActiveSkillDescription|${line11_1}${line11_2}}}`;
                 //Lv.1
                 const line12_1 = `${info.skill_passive_1[0].skill.skill_target_master_id1}|${info.skill_passive_1[0].skill_effect_1.effect_type}|${info.skill_passive_1[0].skill_effect_1.effect_value}|${info.skill_passive_1[0].skill_effect_1.calc_type}|${info.skill_passive_1[1].skill_effect_1.effect_value}|${info.skill_passive_1[2].skill_effect_1.effect_value}|${info.skill_passive_1[3].skill_effect_1.effect_value}|${info.skill_passive_1[4].skill_effect_1.effect_value}`
@@ -472,10 +472,18 @@ function date6digitstr(ts,offset){
     const date = new Date(ts+offset*3600*1000).toUTCString().split(' ');
     return `${date[3].slice(2,4)}${{'Jan':'01','Feb':'02','Mar':'03','Apr':'04','May':'05','Jun':'06','Jul':'07','Aug':'08','Sep':'09','Oct':'10','Nov':'11','Dec':'12'}[date[2]]}${date[1]}`;
 }
-function card_rotation(cards/*{no:... id:... parm_sum_raw:... gepf:...} */){
-    let text_arrays = new Object();
+//210323: +900/+1500
+//210404: +300/+500
+const parm_shift = (time, rarity, gepf) => {
+    if(time < 210320 || rarity === 3 && gepf === "fes")return 0;
+    if(time < 210404)return (rarity * 200 - 100) * 3;
+    return (rarity * 200 - 100) * 4;
+}
+const card_rotation = async (cards/*{no:... id:... parm_sum_raw:... gepf:...} */) => {
+    let text_arrays = {}, text_arrays_stat = {};
     for(let key in MEMBER_NAMES_CN){
-        text_arrays[key] = new Array();
+        text_arrays[key] = [];
+        text_arrays_stat[key] = [];
     }
     for(let card of cards.sort((a,b)=>{return a.no-b.no})){
         const parm_sum = parseInt((card.parm_sum_raw + 6)/50)*50;
@@ -502,8 +510,10 @@ function card_rotation(cards/*{no:... id:... parm_sum_raw:... gepf:...} */){
             const time = parseInt(date6digitstr(RELEASE_DATE[card.no].released));
             const obj = {'time':time,'rarity':rarity,'gepf':RELEASE_DATE[card.no].gepf,'parm_sum':parm_sum,'text':`{{CardRotationCell|${card.id}|${parm_sum}|${time}${gepf_rotation}}}`};
             text_arrays[parseInt(card.id.toString().slice(2,5))].unshift(obj);
+            text_arrays_stat[parseInt(card.id.toString().slice(2,5))].unshift(obj);
         }
     }
+    //potato
     const time_limits = [190926,190926,191115,191231,200804,200804,200804,200804,201125,201125];
     let round_line = new Array();
     for(let round=0;;round++){
@@ -526,6 +536,35 @@ function card_rotation(cards/*{no:... id:... parm_sum_raw:... gepf:...} */){
         final += round_line[round];
         final += '\n\n';
     }
+    //stat ？？？
+    let round_line_stat = [[],[]];
+    let parm_base = {3:{"fes":28500,"pu":26000,"gac":26000,"evt":21000,},2:{"fes":16000,"pu":16000,"gac":16000,"evt":13000}};
+    for(let round_stat = 0;;round_stat++){
+        round_line_stat[0][round_stat] = "";
+        round_line_stat[1][round_stat] = "";
+        let is_empty = true;
+        for(let mid in text_arrays_stat){
+            let is_empty_cell = [true,true];
+            for(let txt of text_arrays_stat[mid]){
+                //console.log(txt,txt.parm_sum - parm_shift(txt.time,txt.rarity,txt.gepf) - round_stat*(txt.rarity*200-100),(parm_base[txt.rarity][txt.gepf] || 10000*txt.rarity - 4000));
+                if(txt.parm_sum - parm_shift(txt.time,txt.rarity,txt.gepf) - round_stat*(txt.rarity*200-100) !== (parm_base[txt.rarity][txt.gepf] || 10000*txt.rarity - 4000))continue;
+                //if(txt.used)continue;//'used' flag for duplicate parm sums
+                //console.log("good")
+                if(txt.time === 210326)console.log(txt.parm_sum, parm_shift(txt.time,txt.rarity,txt.gepf), round_stat*(txt.rarity*200-100), parm_base[txt.rarity][txt.gepf], 10000*txt.rarity - 4000);
+                if(is_empty_cell[txt.rarity - 2])is_empty_cell[txt.rarity - 2] = false;
+                else continue;
+                //txt.used = true;
+                round_line_stat[txt.rarity - 2][round_stat] += txt.text;
+                is_empty = false;
+                
+            }
+            if(is_empty_cell[0])round_line_stat[0][round_stat] += "{{CardRotationCell}}";
+            if(is_empty_cell[1])round_line_stat[1][round_stat] += "{{CardRotationCell}}";
+        }
+        if(is_empty)break;
+    }
+    console.log(round_line_stat[0].join('\n\n\n')+"\n\n\n"+round_line_stat[1].join('\n\n\n'))
+    
     const template = fs.readFileSync(PATH_TEMPLATE_1).toString();
     fs.writeFileSync(PATH_OUT_1,format(template,final));
     console.log('card rotation generation completed.')
