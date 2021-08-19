@@ -2,7 +2,6 @@
 
 {{CharaBasicInfo
 |姓名=星空凛
-|年龄=15岁
 |团队=μ's
 |小队=lily white
 |年级=1年级

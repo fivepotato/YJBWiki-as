@@ -2,7 +2,6 @@
 
 {{CharaBasicInfo
 |姓名=小泉花阳
-|年龄=15岁
 |团队=μ's
 |小队=Printemps
 |年级=1年级

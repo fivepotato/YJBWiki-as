@@ -2,7 +2,6 @@
 
 {{CharaBasicInfo
 |姓名=津岛善子
-|年龄=15岁
 |团队=Aqours
 |小队=Guilty Kiss
 |年级=1年级

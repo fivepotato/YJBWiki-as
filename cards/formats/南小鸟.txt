@@ -2,7 +2,6 @@
 
 {{CharaBasicInfo
 |姓名=南小鸟
-|年龄=16岁
 |团队=μ's
 |小队=Printemps
 |年级=2年级

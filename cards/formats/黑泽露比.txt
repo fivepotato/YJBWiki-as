@@ -2,7 +2,6 @@
 
 {{CharaBasicInfo
 |姓名=黑泽露比
-|年龄=15岁
 |团队=Aqours
 |小队=CYaRon!
 |年级=1年级

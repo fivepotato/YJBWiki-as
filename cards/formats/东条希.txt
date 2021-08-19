@@ -2,7 +2,6 @@
 
 {{CharaBasicInfo
 |姓名=东条希
-|年龄=17岁
 |团队=μ's
 |小队=lily white
 |年级=3年级

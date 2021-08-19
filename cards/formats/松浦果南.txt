@@ -2,7 +2,6 @@
 
 {{CharaBasicInfo
 |姓名=松浦果南
-|年龄=17岁
 |团队=Aqours
 |小队=AZALEA
 |年级=3年级

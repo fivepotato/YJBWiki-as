@@ -2,7 +2,6 @@
 
 {{CharaBasicInfo
 |姓名=国木田花丸
-|年龄=15岁
 |团队=Aqours
 |小队=AZALEA
 |年级=1年级

@@ -2,7 +2,6 @@
 
 {{CharaBasicInfo
 |姓名=园田海未
-|年龄=16岁
 |团队=μ's
 |小队=lily white
 |年级=2年级
