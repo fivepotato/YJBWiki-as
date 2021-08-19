@@ -206,6 +206,7 @@ async function story_dlp_epilogs(unlock_pat,live_diff_id){
         switch (unlock_pat){
             case 1:case 2:case 3:case 4:case 10:
                 if(live_diff_id===11072101||live_diff_id===11072201||live_diff_id===11072301){rej(`Will skip HSN ${live_diff_id}`);return;}
+                if(live_diff_id===10003102||live_diff_id===10003202||live_diff_id===10003302){rej(`Will skip natsuiro ${live_diff_id}`);return;}
                 if(live_diff_id===11014102||live_diff_id===11014202||live_diff_id===11014302){rej(`Will skip A2Z ${live_diff_id}`);return;}
                 if(live_diff_id===12034102||live_diff_id===12034202||live_diff_id===12034302){rej(`Will skip TKMK17 ${live_diff_id}`);return;}
                 res({'sort_key':parseInt(live_diff_id/100)});break;
