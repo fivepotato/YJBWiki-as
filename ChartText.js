@@ -97,7 +97,7 @@ async function chartreplace(d){
             }
             //TODO:(1<->4<->5)<->2:remove AC vo/dmg
             //1<->4<->5
-            masterdata.all(`select live_difficulty_id,unlock_pattern,live_difficulty_type from m_live_difficulty where live_id like '_${d.live_id.toString().slice(1)}' and unlock_pattern < 8 and live_difficulty_type = ${d.live_difficulty_type === 35 ? 114514:d.live_difficulty_type}`,(err,reps)=>{
+            masterdata.all(`select live_difficulty_id,unlock_pattern,live_difficulty_type from m_live_difficulty where live_id like '_${d.live_id.toString().slice(1)}' and (unlock_pattern < 8 or unlock_pattern = 10) and live_difficulty_type = ${d.live_difficulty_type === 35 ? 114514 : d.live_difficulty_type}`,(err,reps)=>{
                 if(err)rej(`[function chartreplace]error occured in sqlite3:`,err);
                 for(let rep of reps){
                     //SBL:only adv
@@ -130,8 +130,8 @@ async function chartreplace(d){
 //judge difficulty type by note count
 async function chartcomparison(d){
     return new Promise((res,rej)=>{
-        if(d.unlock_pattern < 5 || d.unlock_pattern === 7){res('[function chartcomparison]this function is not designed for permanent charts');return;}
-        masterdata.all(`select live_id,live_difficulty_id,live_difficulty_type,unlock_pattern from m_live_difficulty where live_id = '1${d.live_id.toString().slice(1)}' and (unlock_pattern < 5 or unlock_pattern = 7)`,(err,cmps)=>{
+        if(d.unlock_pattern < 5 || d.unlock_pattern === 7 || d.unlock_pattern === 10){res('[function chartcomparison]this function is not designed for permanent charts');return;}
+        masterdata.all(`select live_id,live_difficulty_id,live_difficulty_type,unlock_pattern from m_live_difficulty where live_id = '1${d.live_id.toString().slice(1)}' and (unlock_pattern < 5 or unlock_pattern = 7 or unlock_pattern = 10)`,(err,cmps)=>{
             if(err)rej(err);
             let actions = new Array();
             actions.push(chartreplace(d));
@@ -155,7 +155,7 @@ async function chartcomparison(d){
                     while(cmpchts[0].live_notes[k] && cmpchts[0].live_notes[k].note_type > 3)k++;
                     if(cmpchts[i].live_notes[j] || cmpchts[0].live_notes[k])continue;
                     else{
-                        res(((dif)=>{switch(dif){case 10:return '初级';case 20:return '中级';case 30:return '上级';case 35:return '上级+';default:return 'ERROR_DIFFICULTY_TYPE'}})(cmps[i].live_difficulty_type));
+                        res(((dif)=>{switch(dif){case 10:return '初级';case 20:return '中级';case 30:return '上级';case 35:return '上级+';case 37:return 'Challenge';default:return 'ERROR_DIFFICULTY_TYPE'}})(cmps[i].live_difficulty_type));
                         return;
                     }
                 }
@@ -166,7 +166,7 @@ async function chartcomparison(d){
 }
 //CHARTS, parallel, select by music_id (4 digits) (not complete)
 //not really necessary to make a parallel process in one song, so it is not
-const display_order = [8,6,4,2,1,3,5,7,9,10];
+const display_order = [10,8,6,4,2,1,3,5,7,9];
 const memid_to_name = {1:"高坂穗乃果",2:"绚濑绘里",3:"南小鸟",4:"园田海未",5:"星空凛",6:"西木野真姬",7:"东条希",8:"小泉花阳",9:"矢泽妮可",101:"高海千歌",102:"樱内梨子",103:"松浦果南",104:"黑泽黛雅",105:"渡边曜",106:"津岛善子",107:"国木田花丸",108:"小原鞠莉",109:"黑泽露比",201:"上原步梦",202:"中须霞",203:"樱坂雫",204:"朝香果林",205:"宫下爱",206:"近江彼方",207:"优木雪菜",208:"艾玛·维尔德",209:"天王寺璃奈",210:"三船栞子"};
 function member_icon_gen(memid){
     if(memid !== 210) return `<ASCharaIcon id=${memid} w=80/>`;
@@ -184,9 +184,10 @@ function inverse_wavetext(str){
         case 'S':type=6;break;
         case 'ク':type=8;break;
         case '特':type=9;break;
+        case 'ス':type=16;break;
         default:type=114514;console.error(`unknown AC description ${str}`);
     }
-    let beg = [null,2,10,11,15,3,7,0,9,3],end;
+    let beg = [null,2,10,11,15,3,7,0,9,3,null,null,null,null,null,null,5],end;
     switch(type){
         case 1:case 5:case 6:
             end='ボ';break;
@@ -194,6 +195,8 @@ function inverse_wavetext(str){
             end='回';break;
         case 7:
             end='人';break;
+        case 16:
+            end='%';break;
     }
     arg=parseInt(str.substring(beg[type],str.indexOf(end)).split(',').join(''));
     return {'mission_type':type,'arg_1':arg}
@@ -201,8 +204,11 @@ function inverse_wavetext(str){
 async function story_dlp_epilogs(unlock_pat,live_diff_id){
     return new Promise((res,rej)=>{
         switch (unlock_pat){
-            case 1:case 2:case 3:case 4:
+            case 1:case 2:case 3:case 4:case 10:
                 if(live_diff_id===11072101||live_diff_id===11072201||live_diff_id===11072301){rej(`Will skip HSN ${live_diff_id}`);return;}
+                if(live_diff_id===10003102||live_diff_id===10003202||live_diff_id===10003302){rej(`Will skip natsuiro ${live_diff_id}`);return;}
+                if(live_diff_id===11014102||live_diff_id===11014202||live_diff_id===11014302){rej(`Will skip A2Z ${live_diff_id}`);return;}
+                if(live_diff_id===12034102||live_diff_id===12034202||live_diff_id===12034302){rej(`Will skip TKMK17 ${live_diff_id}`);return;}
                 res({'sort_key':parseInt(live_diff_id/100)});break;
             case 7:res({'sort_key':parseInt(live_diff_id/100/10)*10+50000+live_diff_id%10});break;
             case 5:case 8:rej(`Will skip SBL or intro chart ${live_diff_id}`);break;
@@ -376,8 +382,8 @@ masterdata.each('select distinct music_id,is_2d_live,name,jacket_asset_path,live
             contents += '\n\n'+wikitext_diffs[i].text;i++;
         }
         getdic(music.name,true).then((file_name)=>{
-            if(is_fullfilled && i > 0)fs.writeFile(`${DIR_OUT_CHARTTEXT_FULLFILLED}${file_name}.txt`,header+contents,'utf-8',(err)=>{if(err)throw new Error(err)});
-            else fs.writeFile(`${DIR_OUT_CHARTTEXT_NOT_FULLFILLED}${file_name}.txt`,header+contents,'utf-8',(err)=>{if(err)throw new Error(err)});
+            if(is_fullfilled && i > 0)fs.writeFile(`${DIR_OUT_CHARTTEXT_FULLFILLED}${music.live_member_mapping_id%10000} ${file_name}.txt`,header+contents,'utf-8',(err)=>{if(err)console.error(err)});
+            else fs.writeFile(`${DIR_OUT_CHARTTEXT_NOT_FULLFILLED}${music.live_member_mapping_id%10000} ${file_name}.txt`,header+contents,'utf-8',(err)=>{if(err)console.error(err)});
         })
     });
 })
@@ -441,9 +447,9 @@ function walk_all_difficulty(music_id){
                             sort_key = results.epilog.sort_key;
                             let note_count = chart?(chart.live_notes.length-2*chart.live_wave_settings.length):'未知';
                             switch(difficulty.unlock_pattern){
-                                case 1:case 2:case 3:case 4:case 7:
+                                case 1:case 2:case 3:case 4:case 7:case 10:
                                     /*PERM & EVENT*/
-                                    wikitext_difficulty += `=== <ASCommonIcon name="icon_attribute_${difficulty.default_attribute}" w=26/>${difficulty.default_attribute===9?'活动':new String()}${((dif)=>{switch(dif){case 10:return '初级';case 20:return '中级';case 30:return '上级';case 35:return '上级+';default:return 'ERROR_DIFFICULTY_TYPE'}})(difficulty.live_difficulty_type)} ===`;
+                                    wikitext_difficulty += `=== <ASCommonIcon name="icon_attribute_${difficulty.default_attribute}" w=26/>${difficulty.default_attribute===9?'活动':new String()}${((dif)=>{switch(dif){case 10:return '初级';case 20:return '中级';case 30:return '上级';case 35:return '上级+';case 37:return 'Challenge';default:return 'ERROR_DIFFICULTY_TYPE'}})(difficulty.live_difficulty_type)} ===`;
                                     wikitext_difficulty += `\n\n{{NormalLiveData|${difficulty.consumed_lp}|${difficulty.recommended_score.toLocaleString()}|${difficulty.recommended_stamina.toLocaleString()}|${difficulty.evaluation_c_score.toLocaleString()}|${difficulty.evaluation_b_score.toLocaleString()}|${difficulty.evaluation_a_score.toLocaleString()}|${difficulty.evaluation_s_score.toLocaleString()}|${note_count}|${diff_const.note_stamina_reduce}|${diff_const.sp_gauge_length}|${diff_const.sp_gauge_reducing_point}|${diff_const.note_voltage_upper_limit.toLocaleString()}|${diff_const.collabo_voltage_upper_limit.toLocaleString()}|${diff_const.skill_voltage_upper_limit.toLocaleString()}|${diff_const.squad_change_voltage_upper_limit.toLocaleString()}|${difficulty.reward_user_exp}|${difficulty.reward_base_love_point}}}`;
                                     break;
                                 case 6:
@@ -469,11 +475,17 @@ function walk_all_difficulty(music_id){
                                             rej(`No Live Gimmick from difficulty:${difficulty.live_difficulty_id}, will skip`);//for 9999/92999101/92998101
                                             return;
                                         };
-                                        Promise.all([getdic(glives[0].description),getskill(glives[0],'skill_master_id')]).then((results)=>{
-                                            glives[0].description = results[0];
-                                            glives[0].sk = results[1];
-                                            res(glives[0]);
-                                        });
+                                        let actions = new Array();
+                                        for(let glive of glives){
+                                            actions.push(
+                                                Promise.all([getdic(glive.description),getskill(glive,'skill_master_id')]).then(results=>{
+                                                    glive.description = results[0];
+                                                    glive.sk = results[1];
+                                                    return new Promise(resolve=>{resolve(glive)});
+                                                })
+                                            )
+                                        }
+                                        Promise.all(actions).then(()=>res(glives));
                                     });
                                 }),
                                 new Promise((res,rej)=>{
@@ -508,6 +520,7 @@ function walk_all_difficulty(music_id){
                                     });
                                 })
                             ]).then(gimmicks=>{
+                                //if(gimmicks[0][0].live_difficulty_master_id===11009501)console.log(gimmicks);
                                 return new Promise(res=>{
                                     res({'chart':results.chart,'live':gimmicks[0],'note':gimmicks[1],'wave':gimmicks[2]});
                                 })
@@ -534,12 +547,14 @@ function walk_all_difficulty(music_id){
                             }
                 
                             //gimmickLive
-                            const sk_live = gimmicks.live.sk;
-                            //
-                            let gimmickLiveDescription2 = sk_live.skill.skill_target_master_id2?`|${sk_live.skill.skill_target_master_id2}|${sk_live.skill_effect2.effect_type}|${sk_live.skill_effect2.calc_type}|${sk_live.skill_effect2.effect_value}`:"";
-                            let gimmickLiveDescription = gimmicks.live.skill_master_id===50000001?"无特效":`{{GimmickLiveDescription|${sk_live.skill.skill_target_master_id1}|${sk_live.skill_effect1.effect_type}|${sk_live.skill_effect1.calc_type}|${sk_live.skill_effect1.effect_value}${gimmickLiveDescription2}}}`;
-                            //slice 7 char (【攻略hinto】)
-                            const part1 = `{{GimmickLive|【Live特征】${gimmickLiveDescription}|【攻略提示】{{ja|${gimmicks.live.description.slice(7)}}}}}`;
+                            let Part1 = new String();
+                            for(let glive of gimmicks.live){
+                                //
+                                let gimmickLiveDescription2 = glive.sk.skill.skill_target_master_id2?`|${glive.sk.skill.skill_target_master_id2}|${glive.sk.skill_effect2.effect_type}|${glive.sk.skill_effect2.calc_type}|${glive.sk.skill_effect2.effect_value}`:"";
+                                let gimmickLiveDescription = glive.skill_master_id===50000001?"无特效":`{{GimmickLiveDescription|${glive.sk.skill.skill_target_master_id1}|${glive.sk.skill_effect1.effect_type}|${glive.sk.skill_effect1.calc_type}|${glive.sk.skill_effect1.effect_value}${gimmickLiveDescription2}}}`;
+                                //slice 7 char (【攻略hinto】)
+                                Part1 += `{{GimmickLive|【Live特征】${gimmickLiveDescription}|【攻略提示】{{ja|${glive.description.slice(7)}}}}}`;
+                            }
                            
                             //gimmickNote
                             const chart_avail = gimmicks.chart?true:false;
@@ -571,7 +586,7 @@ function walk_all_difficulty(music_id){
                                 let gimmickNotePositions = "";
                                 for(let pos of gnote.note_ids)gimmickNotePositions+=`|${pos}`;
                                 //icon/jp_name/desc/pos1/pos2/...
-                                Part2 += `{{GimmickNote|${((icon)=>{if(icon<14)icon+=1000;else if(icon===25)icon=1014;else icon+=1987;return icon})(gnote.note_gimmick_icon_type)}|{{ja|${gnote.name_notag}}}|${gimmickNoteDesctiption}${gimmickNotePositions}}}`;
+                                Part2 += `{{GimmickNote|${((icon)=>{if(icon<14)icon+=1000;else if(icon===25)icon=1014;else if(icon===53)icon=2027;else icon+=1987;return icon})(gnote.note_gimmick_icon_type)}|{{ja|${gnote.name_notag}}}|${gimmickNoteDesctiption}${gimmickNotePositions}}}`;
                             }
                             if(gimmicks.note.length === 0)Part2 += '此Live没有特效节奏图示。';
                 
@@ -588,7 +603,7 @@ function walk_all_difficulty(music_id){
                             }
                             if(gimmicks.wave.length === 0)Part3 += '此Live没有Appeal Chance。';
                 
-                            const final = `\n\n{{GimmickData|${part1}|${Part2}|${Part3}}}`;
+                            const final = `\n\n{{GimmickData|${Part1}|${Part2}|${Part3}}}`;
                             wikitext_difficulty += final;
                             wikitext_difficulties.push({'sort_key':sort_key,'text':wikitext_difficulty});
                             checkcounter();
