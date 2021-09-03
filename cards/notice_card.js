@@ -71,6 +71,9 @@ for(i=139;i<144;i++)RELEASE_TS[i]={'released':new Date('2019-12-23T15:00:00.000+
 for(i=203;i<212;i++)RELEASE_TS[i]={'released':new Date('2020-04-06T15:00:00.000+09:00').valueOf()};
 //栞R(虹fes公告 没有具体卡)
 for(i=284;i<286;i++)RELEASE_TS[i]={'released':new Date('2020-08-05T15:00:00.000+09:00').valueOf()};
+//米岚R(没有具体卡)
+for(i=526;i<528;i++)RELEASE_TS[i]={'released':new Date('2021-09-03T15:00:00.000+09:00').valueOf()};
+for(i=529;i<531;i++)RELEASE_TS[i]={'released':new Date('2021-09-03T15:00:00.000+09:00').valueOf()};
 
 function update(card_m_id,date,gepf){
     masterdata.ALL(`select school_idol_no from m_card where id = ${card_m_id}`).then(card=>{
