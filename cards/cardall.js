@@ -88,7 +88,7 @@ function dateymdstr(ts, offset) {
 }
 
 
-const MEMBER_NAMES_CN = { 1: '高坂穗乃果', 3: '南小鸟', 2: '绚濑绘里', 4: '园田海未', 5: '星空凛', 6: '西木野真姬', 7: '东条希', 8: '小泉花阳', 9: '矢泽妮可', 101: '高海千歌', 103: '松浦果南', 102: '樱内梨子', 104: '黑泽黛雅', 105: '渡边曜', 106: '津岛善子', 107: '国木田花丸', 108: '小原鞠莉', 109: '黑泽露比', 201: '上原步梦', 202: '中须霞', 203: '樱坂雫', 204: '朝香果林', 205: '宫下爱', 206: '近江彼方', 207: '优木雪菜', 208: '艾玛·维尔德', 209: '天王寺璃奈', 210: '三船栞子', 212: '钟岚珠', 211: '米雅·泰勒' };
+const MEMBER_NAMES_CN = { 1: '高坂穗乃果', 3: '南小鸟', 2: '绚濑绘里', 4: '园田海未', 5: '星空凛', 6: '西木野真姬', 7: '东条希', 8: '小泉花阳', 9: '矢泽妮可', 101: '高海千歌', 103: '松浦果南', 102: '樱内梨子', 104: '黑泽黛雅', 105: '渡边曜', 106: '津岛善子', 107: '国木田花丸', 108: '小原鞠莉', 109: '黑泽露比', 201: '上原步梦', 202: '中须霞', 203: '樱坂雫', 204: '朝香果林', 205: '宫下爱', 206: '近江彼方', 207: '优木雪菜', 208: '艾玛·维尔德', 209: '天王寺璃奈', 210: '三船栞子', 212: '钟岚珠', 211: '米娅·泰勒' };
 const RELEASE_DATE = JSON.parse(fs.readFileSync(PATH_RELEASE_DATE));
 
 new Promise(async (resolve, reject) => {
@@ -167,13 +167,13 @@ new Promise(async (resolve, reject) => {
         const date_string = dateymdstr(RELEASE_DATE[cards[cards.length - 1].no].released);
 
         let sr_parm_sum = 16000, ur_parm_sum = 26000;
-        for (card of cards) {
+        for (let card of cards) {
             //there are some unexpected aspects that reminding you +1500&+500 is really ugly.
             if (card.id === 424) { sr_parm_sum = 18700; ur_parm_sum = 30500; }
             if (card.id === 434) { sr_parm_sum = 19300; ur_parm_sum = 31500; }
             let gepf;
             //there are some unexpected aspects that reminding you nijigasaki2 is really ugly too.
-            if (card.no >= 284 && card.no <= 286) {
+            if (card.no >= 284 && card.no <= 286 || card.no >= 526 && card.no < 528 || card.no >= 529 && card.no < 531) {
                 gepf = '卡池卡';
             } else {
                 switch (card.id.toString()[0] + card.id.toString()[5] + card.slots.toString()) {
