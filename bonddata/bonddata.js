@@ -154,7 +154,7 @@ new Promise((res,rej)=>{
             prev_love_points = bdb.love_point;
         }
         wikitable_bondlevel += "\n|}";
-        fs.writeFileSync(DIR_OUT_BOND,format(fs.readFileSync(DIR_SRC_BOND).toString(),wikitable_bondboard,wikitable_ep_collection[1],wikitable_ep_collection[101],wikitable_ep_collection[201],wikitable_ep_collection[210],wikitable_bondlevel));
+        fs.writeFileSync(DIR_OUT_BOND,format(fs.readFileSync(DIR_SRC_BOND).toString(),wikitable_bondboard,wikitable_ep_collection[1],wikitable_ep_collection[101],wikitable_ep_collection[201],wikitable_ep_collection[210],wikitable_ep_collection[211],wikitable_bondlevel));
 
 
     },TIMEOUT);//硬等 就硬等
