@@ -63,7 +63,7 @@ for (let i=0;i<9900;i++){
     })
 }
 //2.bond ep reward
-let config_enabled_members = [1,101,201,210];
+let config_enabled_members = [1,101,201,210,211];
 function item_episode(content_type,content_amount){
     switch(content_type){
         case 0: return`<ASImg id=3650 w=30/>×${content_amount}`;
