@@ -68,6 +68,8 @@ const effect_name = {
     116:"回血\tte",
     118:"Gd切队效果up\t",
     119:"ap+",
+    266:"smjbdx",
+    267:"smjbdx",
 };
 const 键数 = skill_effect => {
     switch(skill_effect.finish_type){
@@ -195,7 +197,7 @@ module.exports = {excelAssist: async ()=>{
                 ask.skill_master_id = (await masterdata.ALL(`select skill_master_id from m_active_skill where id = ${ask.active_skill_master_id}`))[0].skill_master_id;
                 ask.skill = (await masterdata.ALL(`select skill_target_master_id1,skill_target_master_id2,skill_effect_master_id1,skill_effect_master_id2 from m_skill where id = ${ask.skill_master_id}`))[0];
                 ask.skill_effect1 = (await masterdata.ALL(`select effect_type,effect_value,finish_type,finish_value,calc_type from m_skill_effect where id = ${ask.skill.skill_effect_master_id1}`))[0];
-                if(ask.skill.skill_effect_master_id2)psk.skill_effect2 = (await masterdata.ALL(`select effect_type,effect_value,finish_type,finish_value from m_skill_effect where id = ${ask.skill.skill_effect_master_id2}`))[0];
+                if(ask.skill.skill_effect_master_id2)ask.skill_effect2 = (await masterdata.ALL(`select effect_type,effect_value,finish_type,finish_value from m_skill_effect where id = ${ask.skill.skill_effect_master_id2}`))[0];
                 res(null);
             });
             actions.push(p);
