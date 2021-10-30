@@ -1,0 +1,66 @@
+{{{!}} class="wikitable tsticky2 mw-collapsible" style="text-align:center"
+{{!}}-
+! rowspan=2 {{!}} 活&#x2060;动<br>编&#x2060;号 !! rowspan=2 {{!}} 活动名 !! rowspan=2 {{!}} 时间 !! colspan=3 {{!}} 活动卡 !! colspan=3 {{!}} 活动卡池卡 
+{{!}}-
+! style="top:27px" {{!}} UR
+{{!}} style="top:27px" {{!}} 上位SR
+{{!}} style="top:27px" {{!}} 下位SR
+{{!}} style="top:27px" {{!}} 前篇UR
+{{!}} style="top:27px" {{!}} 后篇UR
+{{!}} style="top:27px" {{!}} SR
+{{!}}- class="hover-swap-image-trigger"
+{{!}} 1
+{{!}} <div class="hover-swap-image"><ASImg id=127091 w=160/><ASImg id=256481 w=160/></div><br>秘密のパーティー！
+{{!}} 2019/10/3 - 2019/10/15
+{{!}} [[高坂穗乃果#card_long_id_400013001{{!}}<div class="hover-swap-image"><ASIcon id=400013001 w=64/><ASIcon id=400013001 w=64 up/></div>]]
+{{!}} [[上原步梦#card_long_id_402012001{{!}}<div class="hover-swap-image"><ASIcon id=402012001 w=64/><ASIcon id=402012001 w=64 up/></div>]]
+{{!}} [[高海千歌#card_long_id_401012001{{!}}<div class="hover-swap-image"><ASIcon id=401012001 w=64/><ASIcon id=401012001 w=64 up/></div>]]
+{{!}} colspan=2 {{!}} [[南小鸟#card_long_id_300033001{{!}}<div class="hover-swap-image"><ASIcon id=300033001 w=64/><ASIcon id=300033001 w=64 up/></div>]]
+{{!}} [[渡边曜#card_long_id_301052001{{!}}<div class="hover-swap-image"><ASIcon id=301052001 w=64/><ASIcon id=301052001 w=64 up/></div>]]
+{{!}}- class="hover-swap-image-trigger"
+{{!}} 2
+{{!}} <div class="hover-swap-image"><ASImg id=745847 w=160/><ASImg id=53901 w=160/></div><br>和装モデルはお任せあれ！
+{{!}} 2019/10/21 - 2019/10/31
+{{!}} [[黑泽露比#card_long_id_401093001{{!}}<div class="hover-swap-image"><ASIcon id=401093001 w=64/><ASIcon id=401093001 w=64 up/></div>]]
+{{!}} [[矢泽妮可#card_long_id_400092001{{!}}<div class="hover-swap-image"><ASIcon id=400092001 w=64/><ASIcon id=400092001 w=64 up/></div>]]
+{{!}} [[中须霞#card_long_id_402022001{{!}}<div class="hover-swap-image"><ASIcon id=402022001 w=64/><ASIcon id=402022001 w=64 up/></div>]]
+{{!}} colspan=2 {{!}} [[黑泽黛雅#card_long_id_301043001{{!}}<div class="hover-swap-image"><ASIcon id=301043001 w=64/><ASIcon id=301043001 w=64 up/></div>]]
+{{!}} [[西木野真姬#card_long_id_300062001{{!}}<div class="hover-swap-image"><ASIcon id=300062001 w=64/><ASIcon id=300062001 w=64 up/></div>]]
+{{!}}- class="hover-swap-image-trigger"
+{{!}} 3
+{{!}} <div class="hover-swap-image"><ASImg id=510325 w=160/><ASImg id=501223 w=160/></div><br>下町巡り珍道中
+{{!}} 2019/11/6 - 2019/11/15
+{{!}} [[小泉花阳#card_long_id_400083001{{!}}<div class="hover-swap-image"><ASIcon id=400083001 w=64/><ASIcon id=400083001 w=64 up/></div>]]
+{{!}} [[小原鞠莉#card_long_id_401082001{{!}}<div class="hover-swap-image"><ASIcon id=401082001 w=64/><ASIcon id=401082001 w=64 up/></div>]]
+{{!}} [[宫下爱#card_long_id_402052001{{!}}<div class="hover-swap-image"><ASIcon id=402052001 w=64/><ASIcon id=402052001 w=64 up/></div>]]
+{{!}} colspan=2 {{!}} [[松浦果南#card_long_id_301033001{{!}}<div class="hover-swap-image"><ASIcon id=301033001 w=64/><ASIcon id=301033001 w=64 up/></div>]]
+{{!}} [[星空凛#card_long_id_300052001{{!}}<div class="hover-swap-image"><ASIcon id=300052001 w=64/><ASIcon id=300052001 w=64 up/></div>]]
+{{!}}- class="hover-swap-image-trigger"
+{{!}} 4
+{{!}} <div class="hover-swap-image"><ASImg id=160703 w=160/><ASImg id=727951 w=160/></div><br>ハイキングでリフレッシュ！
+{{!}} 2019/11/21 - 2019/11/30
+{{!}} [[国木田花丸#card_long_id_401073001{{!}}<div class="hover-swap-image"><ASIcon id=401073001 w=64/><ASIcon id=401073001 w=64 up/></div>]]
+{{!}} [[园田海未#card_long_id_400042001{{!}}<div class="hover-swap-image"><ASIcon id=400042001 w=64/><ASIcon id=400042001 w=64 up/></div>]]
+{{!}} [[近江彼方#card_long_id_402062001{{!}}<div class="hover-swap-image"><ASIcon id=402062001 w=64/><ASIcon id=402062001 w=64 up/></div>]]
+{{!}} colspan=2 {{!}} [[绚濑绘里#card_long_id_300023001{{!}}<div class="hover-swap-image"><ASIcon id=300023001 w=64/><ASIcon id=300023001 w=64 up/></div>]]
+{{!}} [[津岛善子#card_long_id_301062001{{!}}<div class="hover-swap-image"><ASIcon id=301062001 w=64/><ASIcon id=301062001 w=64 up/></div>]]
+{{!}}- class="hover-swap-image-trigger"
+{{!}} 5
+{{!}} <div class="hover-swap-image"><ASImg id=337705 w=160/><ASImg id=55135 w=160/></div><br>素敵なところへご招待！
+{{!}} 2019/12/6 - 2019/12/16
+{{!}} [[东条希#card_long_id_400073001{{!}}<div class="hover-swap-image"><ASIcon id=400073001 w=64/><ASIcon id=400073001 w=64 up/></div>]]
+{{!}} [[樱内梨子#card_long_id_401022001{{!}}<div class="hover-swap-image"><ASIcon id=401022001 w=64/><ASIcon id=401022001 w=64 up/></div>]]
+{{!}} [[艾玛·维尔德#card_long_id_402082001{{!}}<div class="hover-swap-image"><ASIcon id=402082001 w=64/><ASIcon id=402082001 w=64 up/></div>]]
+{{!}} colspan=2 {{!}} [[高海千歌#card_long_id_301013001{{!}}<div class="hover-swap-image"><ASIcon id=301013001 w=64/><ASIcon id=301013001 w=64 up/></div>]]
+{{!}} [[小泉花阳#card_long_id_300082001{{!}}<div class="hover-swap-image"><ASIcon id=300082001 w=64/><ASIcon id=300082001 w=64 up/></div>]]
+{{!}}- class="hover-swap-image-trigger"
+{{!}} 6
+{{!}} <div class="hover-swap-image"><ASImg id=17719 w=160/><ASImg id=217966 w=160/></div><br>スクールアイドルトレイン発車！
+{{!}} 2019/12/23 - 2019/12/31
+{{!}} [[小原鞠莉#card_long_id_401083001{{!}}<div class="hover-swap-image"><ASIcon id=401083001 w=64/><ASIcon id=401083001 w=64 up/></div>]]
+{{!}} [[高坂穗乃果#card_long_id_400012001{{!}}<div class="hover-swap-image"><ASIcon id=400012001 w=64/><ASIcon id=400012001 w=64 up/></div>]]
+{{!}} [[天王寺璃奈#card_long_id_402092001{{!}}<div class="hover-swap-image"><ASIcon id=402092001 w=64/><ASIcon id=402092001 w=64 up/></div>]]
+{{!}} colspan=2 {{!}} [[矢泽妮可#card_long_id_300093001{{!}}<div class="hover-swap-image"><ASIcon id=300093001 w=64/><ASIcon id=300093001 w=64 up/></div>]]
+{{!}} [[黑泽黛雅#card_long_id_301042001{{!}}<div class="hover-swap-image"><ASIcon id=301042001 w=64/><ASIcon id=301042001 w=64 up/></div>]]
+{0}
+{{!}}}

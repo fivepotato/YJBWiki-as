@@ -1,0 +1,12 @@
+{{{!}} class="wikitable tsticky2 mw-collapsible" style="text-align:center"
+{{!}}-
+! rowspan=2 {{!}} 活&#x2060;动<br>编&#x2060;号 !! rowspan=2 {{!}} 活动名 !! rowspan=2 {{!}} 时间 !! colspan=3 {{!}} 活动卡 !! colspan=3 {{!}} 活动卡池卡 
+{{!}}-
+! style="top:27px" {{!}} UR 
+{{!}} style="top:27px" {{!}} 上位SR 
+{{!}} style="top:27px" {{!}} 下位SR 
+{{!}} style="top:27px" {{!}} 前篇UR 
+{{!}} style="top:27px" {{!}} 后篇UR 
+{{!}} style="top:27px" {{!}} SR 
+{0}
+{{!}}}

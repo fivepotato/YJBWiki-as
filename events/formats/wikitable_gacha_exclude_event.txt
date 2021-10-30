@@ -1,0 +1,5 @@
+{{{!}} class="wikitable tsticky mw-collapsible" style="text-align:center"
+{{!}}-
+! 活&#x2060;动<br>编&#x2060;号 !! 卡池名 !! 时间 !! colspan=3 {{!}} 新登场UR !! colspan=3 {{!}} 新登场SR !! 卡&#x2060;池<br>组&#x2060;成 
+{0}
+{{!}}}
