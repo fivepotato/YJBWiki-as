@@ -211,6 +211,8 @@ const main_2 = async () => {
         ["スクールアイドルトレイン発車！", { gacha_id: 20036, start_at_sec: 1, end_at_sec: 2, gcards: ["300093001", "301042001"] }],
         */
     ]);
+    const gacha_order = [];//for fes/party/spotlight
+    const gacha_info = new Map();//for fes/party/spotlight
     const walk_callback = async (filePath, stat) => {
         const notice = fsPromises.readFile(filePath);
         const { category, title: { dot_under_text: title }, detail_text: { dot_under_text: text }, date } = JSON.parse(await notice);
@@ -231,8 +233,9 @@ const main_2 = async () => {
             }
             event_order.push({ event_id: parseInt(event_id), start_at_sec });
             //console.log(event_id,event_name,card_ids);
+            return;
         };
-        if (category === 2 && title.match(/(【追記】)?.+ガチャ開催(（前編）|（後編）)?/)) {
+        if (category === 2 && title.match(/(【追記】)?.+ガチャ開催(（前編）|（後編）)?/) && text.match(/※詳しくは[「『](交換所|ストーリー)イベント[「『](.+)[』」]開催[』」]のお知らせをご確認ください。/)) {
             let event_name;
             try {
                 ({ 2: event_name } = text.match(/※詳しくは[「『](交換所|ストーリー)イベント[「『](.+)[』」]開催[』」]のお知らせをご確認ください。/));
@@ -246,143 +249,107 @@ const main_2 = async () => {
             else if (phase === "（後編）") gacha_p2_name_info.set(event_name, { gacha_id, start_at_sec, end_at_sec, gcards: card_ids });
             else gacha_pp_name_info.set(event_name, { gacha_id, start_at_sec, end_at_sec, gcards: card_ids });
             //console.log(gacha_id, event_name, card_ids);
+            return;
         };
-
+        if (category === 2 && (title.match(/(【追記】)?(スクスタフェス|パーティーガチャ)開催！！/) || title.slice(-11) === "ピックアップガチャ開催")) {
+            let gacha_name;
+            try {
+                ({ 2: gacha_name } = title.match(/(【追記】)?(スクスタフェス|パーティーガチャ)開催！！/));
+            } catch (e) {
+                ({ 2: gacha_name } = title.match(/(【追記】)?(.*ピックアップガチャ)開催/));
+            }
+            const { 1: gacha_id } = text.match(/<sprite src=\"Common\/InlineImage\/Banner\/Gacha\/([0-9]+)\/tex_banner_notice_l_([0-9]+)\" width=\"1120px\" height=\"334px\"\/>/);
+            const { 1: start_at_sec, 2: end_at_sec } = text.match(/<align="center"><color value="#3088ff">【開催期間】1 ([0-9]+) ～ 1 ([0-9]+)<\/color><\/align>/);
+            const card_ids = text.match(/(?<=<card[ ]+value=\")[0-9]+(?=\"[ ]*\/>)/g);
+            gacha_order.push({ gacha_id: parseInt(gacha_id), start_at_sec });
+            const { 1: notice_scout_1 } = text.match(/<button notice_id="([0-9]+)" button_text="1回ガチャ出現率" \/>/);
+            const { 1: notice_scout_10 } = text.match(/<button notice_id="([0-9]+)" button_text="10回ガチャ出現率" \/>/);
+            gacha_info.set(parseInt(gacha_id), { gacha_name, start_at_sec, end_at_sec, gcards: card_ids, notice_scout_1, notice_scout_10 });
+        };
     };
     await walk(DIR_NOTICES, walk_callback);
     //global event order
     const event_no = new Map(event_order.sort((a, b) => a.start_at_sec - b.start_at_sec).map((value, index) => [value.event_id, index + 7]));
-
-    const exchange_event_ids = [];
-    for (let event_id = 31001; exchange_id_info.get(event_id); event_id += 1)exchange_event_ids.push(event_id);
-    const p = exchange_event_ids.sort().map(async (event_id) => {
-        const text = [];
-        const { event_name, start_at_sec, end_at_sec, ecards } = exchange_id_info.get(event_id);
-        text[0] = event_no.get(event_id);
-        text[2] = duration_text(start_at_sec, end_at_sec);
-        text[3] = template_card_id_to_link_swap(ecards[0]);
-        text[4] = template_card_id_to_link_swap(ecards[1]);
-        text[5] = template_card_id_to_link_swap(ecards[2]);
-        const { path: banner_b95 } = await masterdata.EACH(`select path from m_decoration_texture where id = "Common\/InlineImage\/Banner\/Event\/Mining\/${event_id}\/tex_banner_notice_s_${event_id}"`);
-        const banner_id = base95(banner_b95);
-        try {
-            const { gacha_id, gcards } = gacha_pp_name_info.get(event_name);
-            const { path: banner_b95 } = await masterdata.EACH(`select path from m_decoration_texture where id = "Common\/InlineImage\/Banner\/Gacha\/${gacha_id}\/tex_banner_notice_s_${gacha_id}"`);
-            const banner_id_gacha = base95(banner_b95);
-            text[1] = `<div class="hover-swap-image"><ASImg id=${banner_id} w=160/><ASImg id=${banner_id_gacha} w=160/></div><br>${event_name}`;
-            text[6] = "colspan=2 {{!}} " + gcards.filter((card_id) => Array.from(card_id)[5] === '3').map(template_card_id_to_link_swap).join(' ');
-            text[7] = gcards.filter((card_id) => Array.from(card_id)[5] === '2').map(template_card_id_to_link_swap).join(' ');
-        } catch (e) {
-            const { gacha_id: gacha_id_1, gcards: gcards_1 } = gacha_p1_name_info.get(event_name);
-            const { gacha_id: gacha_id_2, gcards: gcards_2 } = gacha_p2_name_info.get(event_name);
-            const { path: banner_b95 } = await masterdata.EACH(`select path from m_decoration_texture where id = "Common\/InlineImage\/Banner\/Gacha\/${gacha_id_1}\/tex_banner_notice_s_${gacha_id_1}"`);
-            const banner_id_gacha = base95(banner_b95);
-            text[1] = `<div class="hover-swap-image"><ASImg id=${banner_id} w=160/><ASImg id=${banner_id_gacha} w=160/></div><br>${event_name}`;
-            text[6] = template_card_id_to_link_swap(gcards_1[0]);
-            text[7] = template_card_id_to_link_swap(gcards_2[0]);
-            text[8] = template_card_id_to_link_swap(gcards_1[1]);
-        };
-        return "{{!}} " + text.join(" \n{{!}} ");
+    const gacha_no = new Map(); let current_event_index = 0;
+    gacha_order.sort((a, b) => a.start_at_sec - b.start_at_sec).forEach((value) => {
+        while (event_order[current_event_index] && event_order[current_event_index].start_at_sec < value.start_at_sec) current_event_index += 1;
+        if (!event_order[current_event_index]) gacha_no.set(value.gacha_id, event_no.get(event_order[current_event_index - 1].event_id) - 0.5);
+        else gacha_no.set(value.gacha_id, event_no.get(event_order[current_event_index].event_id) - 0.5);
     });
-    const lines = await Promise.all(p);
+    const gacha_order_abc = gacha_order.filter(({ gacha_id }, index, array) =>
+        !(array[index - 1] && gacha_id === array[index - 1].gacha_id)
+    );//去重
+    //PickUp + Festival + Party
+    {
+        const p_gacha = gacha_order_abc.map(gacha_line_generation(gacha_no, gacha_info));
+        const lines_gacha = await Promise.all(p_gacha);
+        const format_table_gacha = fs.readFileSync("formats/wikitable_gacha_exclude_event.txt").toString();
+        results.gacha = format_table_gacha.replace("{0}", "{{!}}- class=\"hover-swap-image-trigger\" \n" + lines_gacha.join(" \n{{!}}- class=\"hover-swap-image-trigger\" \n"));
+    }
+    //PickUp
+    {
+        const gacha_order_a = gacha_order_abc.filter(({ gacha_id }) => gacha_info.get(gacha_id).gacha_name.slice(-9) === "ピックアップガチャ");
+        const p_gacha = gacha_order_a.map(gacha_line_generation(gacha_no, gacha_info));
+        const lines_gacha = await Promise.all(p_gacha);
+        const format_table_gacha = fs.readFileSync("formats/wikitable_gacha_exclude_event.txt").toString();
+        results.gacha_pu = format_table_gacha.replace("{0}", "{{!}}- class=\"hover-swap-image-trigger\" \n" + lines_gacha.join(" \n{{!}}- class=\"hover-swap-image-trigger\" \n"));
+    }
+    //Festival
+    {
+        const gacha_order_a = gacha_order_abc.filter(({ gacha_id }) => gacha_info.get(gacha_id).gacha_name === "スクスタフェス");
+        const p_gacha = gacha_order_a.map(gacha_line_generation(gacha_no, gacha_info));
+        const lines_gacha = await Promise.all(p_gacha);
+        const format_table_gacha = fs.readFileSync("formats/wikitable_gacha_exclude_event.txt").toString();
+        results.gacha_fes = format_table_gacha.replace("{0}", "{{!}}- class=\"hover-swap-image-trigger\" \n" + lines_gacha.join(" \n{{!}}- class=\"hover-swap-image-trigger\" \n"));
+    }
+    //Party
+    {
+        const gacha_order_a = gacha_order_abc.filter(({ gacha_id }) => gacha_info.get(gacha_id).gacha_name === "パーティーガチャ");
+        const p_gacha = gacha_order_a.map(gacha_line_generation(gacha_no, gacha_info));
+        const lines_gacha = await Promise.all(p_gacha);
+        const format_table_gacha = fs.readFileSync("formats/wikitable_gacha_exclude_event.txt").toString();
+        results.gacha_prt = format_table_gacha.replace("{0}", "{{!}}- class=\"hover-swap-image-trigger\" \n" + lines_gacha.join(" \n{{!}}- class=\"hover-swap-image-trigger\" \n"));
+    }
+    const exchange_event_ids = []; for (let event_id = 31001; exchange_id_info.get(event_id); event_id += 1)exchange_event_ids.push(event_id);
+    const p_exchange = exchange_event_ids.sort().map(event_line_generation(event_no, exchange_id_info, gacha_p1_name_info, gacha_p2_name_info, gacha_pp_name_info, "Mining"));
+    const lines_exchange = await Promise.all(p_exchange);
+    const format_table_exchange = fs.readFileSync("formats/wikitable_exchange_event.txt").toString();
+    results.exchange = format_table_exchange.replace("{0}", "{{!}}- class=\"hover-swap-image-trigger\" \n" + lines_exchange.join(" \n{{!}}- class=\"hover-swap-image-trigger\" \n"));
 
-    results.push(`{{{!}} class="wikitable tsticky2" style="text-align:center"
-{{!}}-
-! rowspan=2 {{!}} 活&#x2060;动<br>编&#x2060;号 !! rowspan=2 {{!}} 活动名 !! rowspan=2 {{!}} 时间 !! colspan=3 {{!}} 活动卡 !! colspan=3 {{!}} 活动卡池卡 
-{{!}}-
-! style="top:27px" {{!}} UR 
-{{!}} style="top:27px" {{!}} 上位SR 
-{{!}} style="top:27px" {{!}} 下位SR 
-{{!}} style="top:27px" {{!}} 前篇UR 
-{{!}} style="top:27px" {{!}} 后篇UR 
-{{!}} style="top:27px" {{!}} SR 
-${"{{!}}- class=\"hover-swap-image-trigger\" \n" + lines.join(" \n{{!}}- class=\"hover-swap-image-trigger\" \n")}
-{{!}}}`);
-
-    const story_event_ids = [];
-    for (let event_id = 30007; story_id_info.get(event_id); event_id += 1)story_event_ids.push(event_id);
-    const p_story = story_event_ids.sort().map(line_generation(event_no, story_id_info, gacha_p1_name_info, gacha_p2_name_info, gacha_pp_name_info));
-
-    //console.log(event_no,story_id_info, gacha_p1_name_info, gacha_p2_name_info, gacha_pp_name_info);
+    const story_event_ids = []; for (let event_id = 30007; story_id_info.get(event_id); event_id += 1)story_event_ids.push(event_id);
+    const p_story = story_event_ids.sort().map(event_line_generation(event_no, story_id_info, gacha_p1_name_info, gacha_p2_name_info, gacha_pp_name_info, "Marathon"));
     const lines_story = await Promise.all(p_story);
-    results.push(`{{{!}} class="wikitable tsticky2" style="text-align:center"
-{{!}}-
-! rowspan=2 {{!}} 活&#x2060;动<br>编&#x2060;号 !! rowspan=2 {{!}} 活动名 !! rowspan=2 {{!}} 时间 !! colspan=3 {{!}} 活动卡 !! colspan=3 {{!}} 活动卡池卡 
-{{!}}-
-! style="top:27px" {{!}} UR
-{{!}} style="top:27px" {{!}} 上位SR
-{{!}} style="top:27px" {{!}} 下位SR
-{{!}} style="top:27px" {{!}} 前篇UR
-{{!}} style="top:27px" {{!}} 后篇UR
-{{!}} style="top:27px" {{!}} SR
-{{!}}- class="hover-swap-image-trigger"
-{{!}} 1
-{{!}} <div class="hover-swap-image"><ASImg id=127091 w=160/><ASImg id=256481 w=160/></div><br>秘密のパーティー！
-{{!}} 2019/10/3 - 2019/10/15
-{{!}} [[高坂穗乃果#card_long_id_400013001{{!}}<div class="hover-swap-image"><ASIcon id=400013001 w=64/><ASIcon id=400013001 w=64 up/></div>]]
-{{!}} [[上原步梦#card_long_id_402012001{{!}}<div class="hover-swap-image"><ASIcon id=402012001 w=64/><ASIcon id=402012001 w=64 up/></div>]]
-{{!}} [[高海千歌#card_long_id_401012001{{!}}<div class="hover-swap-image"><ASIcon id=401012001 w=64/><ASIcon id=401012001 w=64 up/></div>]]
-{{!}} colspan=2 {{!}} [[南小鸟#card_long_id_300033001{{!}}<div class="hover-swap-image"><ASIcon id=300033001 w=64/><ASIcon id=300033001 w=64 up/></div>]]
-{{!}} [[渡边曜#card_long_id_301052001{{!}}<div class="hover-swap-image"><ASIcon id=301052001 w=64/><ASIcon id=301052001 w=64 up/></div>]]
-{{!}}- class="hover-swap-image-trigger"
-{{!}} 2
-{{!}} <div class="hover-swap-image"><ASImg id=745847 w=160/><ASImg id=53901 w=160/></div><br>和装モデルはお任せあれ！
-{{!}} 2019/10/21 - 2019/10/31
-{{!}} [[黑泽露比#card_long_id_401093001{{!}}<div class="hover-swap-image"><ASIcon id=401093001 w=64/><ASIcon id=401093001 w=64 up/></div>]]
-{{!}} [[矢泽妮可#card_long_id_400092001{{!}}<div class="hover-swap-image"><ASIcon id=400092001 w=64/><ASIcon id=400092001 w=64 up/></div>]]
-{{!}} [[中须霞#card_long_id_402022001{{!}}<div class="hover-swap-image"><ASIcon id=402022001 w=64/><ASIcon id=402022001 w=64 up/></div>]]
-{{!}} colspan=2 {{!}} [[黑泽黛雅#card_long_id_301043001{{!}}<div class="hover-swap-image"><ASIcon id=301043001 w=64/><ASIcon id=301043001 w=64 up/></div>]]
-{{!}} [[西木野真姬#card_long_id_300062001{{!}}<div class="hover-swap-image"><ASIcon id=300062001 w=64/><ASIcon id=300062001 w=64 up/></div>]]
-{{!}}- class="hover-swap-image-trigger"
-{{!}} 3
-{{!}} <div class="hover-swap-image"><ASImg id=510325 w=160/><ASImg id=501223 w=160/></div><br>下町巡り珍道中
-{{!}} 2019/11/6 - 2019/11/15
-{{!}} [[小泉花阳#card_long_id_400083001{{!}}<div class="hover-swap-image"><ASIcon id=400083001 w=64/><ASIcon id=400083001 w=64 up/></div>]]
-{{!}} [[小原鞠莉#card_long_id_401082001{{!}}<div class="hover-swap-image"><ASIcon id=401082001 w=64/><ASIcon id=401082001 w=64 up/></div>]]
-{{!}} [[宫下爱#card_long_id_402052001{{!}}<div class="hover-swap-image"><ASIcon id=402052001 w=64/><ASIcon id=402052001 w=64 up/></div>]]
-{{!}} colspan=2 {{!}} [[松浦果南#card_long_id_301033001{{!}}<div class="hover-swap-image"><ASIcon id=301033001 w=64/><ASIcon id=301033001 w=64 up/></div>]]
-{{!}} [[星空凛#card_long_id_300052001{{!}}<div class="hover-swap-image"><ASIcon id=300052001 w=64/><ASIcon id=300052001 w=64 up/></div>]]
-{{!}}- class="hover-swap-image-trigger"
-{{!}} 4
-{{!}} <div class="hover-swap-image"><ASImg id=160703 w=160/><ASImg id=727951 w=160/></div><br>ハイキングでリフレッシュ！
-{{!}} 2019/11/21 - 2019/11/30
-{{!}} [[国木田花丸#card_long_id_401073001{{!}}<div class="hover-swap-image"><ASIcon id=401073001 w=64/><ASIcon id=401073001 w=64 up/></div>]]
-{{!}} [[园田海未#card_long_id_400042001{{!}}<div class="hover-swap-image"><ASIcon id=400042001 w=64/><ASIcon id=400042001 w=64 up/></div>]]
-{{!}} [[近江彼方#card_long_id_402062001{{!}}<div class="hover-swap-image"><ASIcon id=402062001 w=64/><ASIcon id=402062001 w=64 up/></div>]]
-{{!}} colspan=2 {{!}} [[绚濑绘里#card_long_id_300023001{{!}}<div class="hover-swap-image"><ASIcon id=300023001 w=64/><ASIcon id=300023001 w=64 up/></div>]]
-{{!}} [[津岛善子#card_long_id_301062001{{!}}<div class="hover-swap-image"><ASIcon id=301062001 w=64/><ASIcon id=301062001 w=64 up/></div>]]
-{{!}}- class="hover-swap-image-trigger"
-{{!}} 5
-{{!}} <div class="hover-swap-image"><ASImg id=337705 w=160/><ASImg id=55135 w=160/></div><br>素敵なところへご招待！
-{{!}} 2019/12/6 - 2019/12/16
-{{!}} [[东条希#card_long_id_400073001{{!}}<div class="hover-swap-image"><ASIcon id=400073001 w=64/><ASIcon id=400073001 w=64 up/></div>]]
-{{!}} [[樱内梨子#card_long_id_401022001{{!}}<div class="hover-swap-image"><ASIcon id=401022001 w=64/><ASIcon id=401022001 w=64 up/></div>]]
-{{!}} [[艾玛·维尔德#card_long_id_402082001{{!}}<div class="hover-swap-image"><ASIcon id=402082001 w=64/><ASIcon id=402082001 w=64 up/></div>]]
-{{!}} colspan=2 {{!}} [[高海千歌#card_long_id_301013001{{!}}<div class="hover-swap-image"><ASIcon id=301013001 w=64/><ASIcon id=301013001 w=64 up/></div>]]
-{{!}} [[小泉花阳#card_long_id_300082001{{!}}<div class="hover-swap-image"><ASIcon id=300082001 w=64/><ASIcon id=300082001 w=64 up/></div>]]
-{{!}}- class="hover-swap-image-trigger"
-{{!}} 6
-{{!}} <div class="hover-swap-image"><ASImg id=17719 w=160/><ASImg id=217966 w=160/></div><br>スクールアイドルトレイン発車！
-{{!}} 2019/12/23 - 2019/12/31
-{{!}} [[小原鞠莉#card_long_id_401083001{{!}}<div class="hover-swap-image"><ASIcon id=401083001 w=64/><ASIcon id=401083001 w=64 up/></div>]]
-{{!}} [[高坂穗乃果#card_long_id_400012001{{!}}<div class="hover-swap-image"><ASIcon id=400012001 w=64/><ASIcon id=400012001 w=64 up/></div>]]
-{{!}} [[天王寺璃奈#card_long_id_402092001{{!}}<div class="hover-swap-image"><ASIcon id=402092001 w=64/><ASIcon id=402092001 w=64 up/></div>]]
-{{!}} colspan=2 {{!}} [[矢泽妮可#card_long_id_300093001{{!}}<div class="hover-swap-image"><ASIcon id=300093001 w=64/><ASIcon id=300093001 w=64 up/></div>]]
-{{!}} [[黑泽黛雅#card_long_id_301042001{{!}}<div class="hover-swap-image"><ASIcon id=301042001 w=64/><ASIcon id=301042001 w=64 up/></div>]]
-${"{{!}}- class=\"hover-swap-image-trigger\" \n" + lines_story.join(" \n{{!}}- class=\"hover-swap-image-trigger\" \n")}
-{{!}}}`);
+    const format_table_story = fs.readFileSync("formats/wikitable_story_event.txt").toString();
+    results.story = format_table_story.replace("{0}", "{{!}}- class=\"hover-swap-image-trigger\" \n" + lines_story.join(" \n{{!}}- class=\"hover-swap-image-trigger\" \n"));
     return results;
 };
 
-main_2().then(([exchange, story]) => {
+main_2().then(({ exchange, story, gacha, gacha_pu, gacha_fes, gacha_prt }) => {
     fs.writeFileSync("Template%COLON%EventHistory.txt", `<includeonly>{{#switch:{{{1}}}
 |1=${exchange}
 |0=${story}
-|ERROR!({{{1}}}) No such type of event.}}</includeonly><noinclude>{{EventHistory|1}}{{EventHistory|0}}</noinclude>`);
-})
+|100=${gacha}
+|105=${gacha_pu}
+|110=${gacha_fes}
+|111=${gacha_prt}
+|ERROR!({{{1}}}) No such type of event.}}</includeonly><noinclude>== 活动/活动卡池 ==
+=== 交换所活动 ===
+{{EventHistory|1}}
+=== 剧情活动 ===
+{{EventHistory|0}}
+== 非活动卡池 ==
+{{EventHistory|100}}
+=== PickUp ===
+{{EventHistory|105}}
+=== Festival ===
+{{EventHistory|110}}
+=== Party ===
+{{EventHistory|111}}</noinclude>`);
+});
 
-const template_card_id_to_link_swap = (card_id) => `[[${memid_to_fullname[parseInt(Array.from(card_id).filter((value, index) => index >= 2 && index <= 4).join(""))]}#card_long_id_${card_id}{{!}}<div class="hover-swap-image"><ASIcon id=${card_id} w=64/><ASIcon id=${card_id} w=64 up/></div>]]`;
-const line_generation = (event_no, event_id_info, gacha_p1_name_info, gacha_p2_name_info, gacha_pp_name_info) => async (event_id) => {
+//const template_card_id_to_link_swap = (card_id) => `[[${memid_to_fullname[parseInt(Array.from(card_id).filter((value, index) => index >= 2 && index <= 4).join(""))]}#card_long_id_${card_id}{{!}}<div class="hover-swap-image"><ASIcon id=${card_id} w=64/><ASIcon id=${card_id} w=64 up/></div>]]`;
+const template_card_id_to_link_swap = (card_id) => `{{CardIDToLink|${card_id}|64|12}}`;
+const event_line_generation = (event_no, event_id_info, gacha_p1_name_info, gacha_p2_name_info, gacha_pp_name_info, decoration_texture_directory) => async (event_id) => {
     const text = [];
     const { event_name, start_at_sec, end_at_sec, ecards } = event_id_info.get(event_id);
     text[0] = event_no.get(event_id);
@@ -390,7 +357,7 @@ const line_generation = (event_no, event_id_info, gacha_p1_name_info, gacha_p2_n
     text[3] = template_card_id_to_link_swap(ecards[0]);
     text[4] = template_card_id_to_link_swap(ecards[1]);
     text[5] = template_card_id_to_link_swap(ecards[2]);
-    const { path: banner_b95 } = await masterdata.EACH(`select path from m_decoration_texture where id = "Common\/InlineImage\/Banner\/Event\/Marathon\/${event_id}\/tex_banner_notice_s_${event_id}"`);
+    const { path: banner_b95 } = await masterdata.EACH(`select path from m_decoration_texture where id = "Common\/InlineImage\/Banner\/Event\/${decoration_texture_directory}\/${event_id}\/tex_banner_notice_s_${event_id}"`);
     const banner_id = base95(banner_b95);
     try {
         const { gacha_id, gcards } = gacha_pp_name_info.get(event_name);
@@ -413,5 +380,62 @@ const line_generation = (event_no, event_id_info, gacha_p1_name_info, gacha_p2_n
             console.log(e);
         }
     };
+    return "{{!}} " + text.join(" \n{{!}} ");
+}
+const get_lot_rates = async (gcards, ...notice_ids) => {
+    const notices = await Promise.all(notice_ids.map(async (notice_id) => {
+        return JSON.parse(await fsPromises.readFile(`${DIR_NOTICES}${notice_id}.json`));
+    })).catch((e) => { });
+    const rates = gcards.map((value) => [parseInt(value), []]);
+    const counts = [["countUR", []], ["countSR", []], ["countR", []]];
+    if (!notices) return new Map(rates);
+    notices.forEach((value) => {
+        const text_30 = value.detail_text.dot_under_text.match(/<table_gacha_rates card_master_ids="(.+)" lot_rates="(.+)" rarity="30"\/>/);
+        const text_20 = value.detail_text.dot_under_text.match(/<table_gacha_rates card_master_ids="(.+)" lot_rates="(.+)" rarity="20"\/>/);
+        const text_10 = value.detail_text.dot_under_text.match(/<table_gacha_rates card_master_ids="(.+)" lot_rates="(.+)" rarity="10"\/>/);
+        const { 1: card_master_ids_text_30, 2: lot_rates_text_30 } = text_30 ? text_30 : [, [], []];
+        const { 1: card_master_ids_text_20, 2: lot_rates_text_20 } = text_20 ? text_20 : [, [], []];
+        const { 1: card_master_ids_text_10, 2: lot_rates_text_10 } = text_10 ? text_10 : [, [], []];
+        counts[0][1].push(JSON.parse(card_master_ids_text_30).length);
+        counts[1][1].push(JSON.parse(card_master_ids_text_20).length);
+        counts[2][1].push(JSON.parse(card_master_ids_text_10).length);
+        const card_master_ids = JSON.parse(card_master_ids_text_30).concat(JSON.parse(card_master_ids_text_20), JSON.parse(card_master_ids_text_10));
+        const lot_rates = eval(lot_rates_text_30).concat(eval(lot_rates_text_20), eval(lot_rates_text_10));
+        rates.forEach(([card_master_id, lot_rate_array]) => {
+            lot_rate_array.push(parseFloat(lot_rates[card_master_ids.indexOf(parseInt(card_master_id))]));
+        });
+    });
+    //get ur/sr/r count from the first notice
+    return new Map(rates.concat(counts));
+};
+const gacha_line_generation = (gacha_no, gacha_id_info) => async ({ gacha_id }) => {
+    const text = [];
+    text[0] = gacha_no.get(gacha_id);
+    const { path: banner_b95 } = await masterdata.EACH(`select path from m_decoration_texture where id = "Common\/InlineImage\/Banner\/Gacha\/${gacha_id}\/tex_banner_notice_l_${gacha_id}"`);
+    const banner_id = base95(banner_b95);
+    const { gacha_name, start_at_sec, end_at_sec, gcards, notice_scout_1, notice_scout_10 } = gacha_id_info.get(gacha_id);
+    text[1] = `<ASImg id=${banner_id} w=192/><br>${gacha_name}`;
+    text[2] = duration_text(start_at_sec, end_at_sec);
+    const lot_rate_map = await get_lot_rates(gcards, notice_scout_1, notice_scout_10);
+    text[3] = gcards.filter((card_id) => card_id[5] === '3' && card_id[2] === '0').map((card_id) => {
+        return `{{CardLevelDescription|${card_id}|${lot_rate_map.get(parseInt(card_id)).map(s => s + '%').join('/')}|12}}`;
+    }).join('<br>');
+    text[4] = gcards.filter((card_id) => card_id[5] === '3' && card_id[2] === '1').map((card_id) => {
+        return `{{CardLevelDescription|${card_id}|${lot_rate_map.get(parseInt(card_id)).map(s => s + '%').join('/')}|12}}`;
+    }).join('<br>');
+    text[5] = gcards.filter((card_id) => card_id[5] === '3' && card_id[2] === '2').map((card_id) => {
+        return `{{CardLevelDescription|${card_id}|${lot_rate_map.get(parseInt(card_id)).map(s => s + '%').join('/')}|12}}`;
+    }).join('<br>');
+    text[6] = gcards.filter((card_id) => card_id[5] === '2' && card_id[2] === '0').map((card_id) => {
+        return `{{CardLevelDescription|${card_id}|${lot_rate_map.get(parseInt(card_id)).map(s => s + '%').join('/')}|12}}`;
+    }).join('<br>');
+    text[7] = gcards.filter((card_id) => card_id[5] === '2' && card_id[2] === '1').map((card_id) => {
+        return `{{CardLevelDescription|${card_id}|${lot_rate_map.get(parseInt(card_id)).map(s => s + '%').join('/')}|12}}`;
+    }).join('<br>');
+    text[8] = gcards.filter((card_id) => card_id[5] === '2' && card_id[2] === '2').map((card_id) => {
+        return `{{CardLevelDescription|${card_id}|${lot_rate_map.get(parseInt(card_id)).map(s => s + '%').join('/')}|12}}`;
+    }).join('<br>');
+    text[9] = lot_rate_map.get("countUR") ? `${lot_rate_map.get("countUR")[1]}UR<br>${lot_rate_map.get("countSR")[1]}SR<br>${lot_rate_map.get("countR")[1]}R` : "";
+    // TODO: Analyze other pick ups in notice_scout_1 and notice_scout_10
     return "{{!}} " + text.join(" \n{{!}} ");
 }
