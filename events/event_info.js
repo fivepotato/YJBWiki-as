@@ -273,7 +273,7 @@ const main_2 = async () => {
     const gacha_no = new Map(); let current_event_index = 0;
     gacha_order.sort((a, b) => a.start_at_sec - b.start_at_sec).forEach((value) => {
         while (event_order[current_event_index] && event_order[current_event_index].start_at_sec < value.start_at_sec) current_event_index += 1;
-        if (!event_order[current_event_index]) gacha_no.set(value.gacha_id, event_no.get(event_order[current_event_index - 1].event_id) - 0.5);
+        if (!event_order[current_event_index]) gacha_no.set(value.gacha_id, event_no.get(event_order[current_event_index - 1].event_id) + 0.5);
         else gacha_no.set(value.gacha_id, event_no.get(event_order[current_event_index].event_id) - 0.5);
     });
     const gacha_order_abc = gacha_order.filter(({ gacha_id }, index, array) =>
