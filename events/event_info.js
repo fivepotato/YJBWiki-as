@@ -269,7 +269,9 @@ const main_2 = async () => {
     };
     await walk(DIR_NOTICES, walk_callback);
     //global event order
-    const event_no = new Map(event_order.sort((a, b) => a.start_at_sec - b.start_at_sec).map((value, index) => [value.event_id, index + 7]));
+    const event_no = new Map(event_order.sort((a, b) => a.start_at_sec - b.start_at_sec)
+        .filter(({ event_id }, index, array) => !(array[index - 1] && event_id === array[index - 1].event_id))//去重
+        .map((value, index) => [value.event_id, index + 7]));
     const gacha_no = new Map(); let current_event_index = 0;
     gacha_order.sort((a, b) => a.start_at_sec - b.start_at_sec).forEach((value) => {
         while (event_order[current_event_index] && event_order[current_event_index].start_at_sec < value.start_at_sec) current_event_index += 1;
