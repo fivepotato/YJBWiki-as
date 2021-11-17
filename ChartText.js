@@ -97,9 +97,10 @@ async function chartreplace(d){
             }
             //TODO:(1<->4<->5)<->2:remove AC vo/dmg
             //1<->4<->5
-            masterdata.all(`select live_difficulty_id,unlock_pattern,live_difficulty_type from m_live_difficulty where live_id like '_${d.live_id.toString().slice(1)}' and (unlock_pattern < 8 or unlock_pattern = 10) and live_difficulty_type = ${d.live_difficulty_type === 35 ? 114514 : d.live_difficulty_type}`,(err,reps)=>{
+            masterdata.all(`select live_difficulty_id,unlock_pattern,live_difficulty_type from m_live_difficulty where live_id like '_${d.live_id.toString().slice(1)}' and (unlock_pattern < 8 or unlock_pattern = 10) and live_difficulty_type = ${d.live_difficulty_type}`,(err,reps)=>{
                 if(err)rej(`[function chartreplace]error occured in sqlite3:`,err);
                 for(let rep of reps){
+                    if(d.live_difficulty_type === 35 && rep.unlock_pattern !== 7)continue;
                     //SBL:only adv
                     if(d.unlock_pattern === 5 || rep.unlock_pattern === 5){
                         if(d.live_difficulty_type !== 30)continue;
@@ -166,11 +167,15 @@ async function chartcomparison(d){
 }
 //CHARTS, parallel, select by music_id (4 digits) (not complete)
 //not really necessary to make a parallel process in one song, so it is not
-const display_order = [10,8,6,4,2,1,3,5,7,9];
-const memid_to_name = {1:"高坂穗乃果",2:"绚濑绘里",3:"南小鸟",4:"园田海未",5:"星空凛",6:"西木野真姬",7:"东条希",8:"小泉花阳",9:"矢泽妮可",101:"高海千歌",102:"樱内梨子",103:"松浦果南",104:"黑泽黛雅",105:"渡边曜",106:"津岛善子",107:"国木田花丸",108:"小原鞠莉",109:"黑泽露比",201:"上原步梦",202:"中须霞",203:"樱坂雫",204:"朝香果林",205:"宫下爱",206:"近江彼方",207:"优木雪菜",208:"艾玛·维尔德",209:"天王寺璃奈",210:"三船栞子"};
+const display_order = [12,10,8,6,4,2,1,3,5,7,9,11];
+const memid_to_name = {1:"高坂穗乃果",2:"绚濑绘里",3:"南小鸟",4:"园田海未",5:"星空凛",6:"西木野真姬",7:"东条希",8:"小泉花阳",9:"矢泽妮可",
+101:"高海千歌",102:"樱内梨子",103:"松浦果南",104:"黑泽黛雅",105:"渡边曜",106:"津岛善子",107:"国木田花丸",108:"小原鞠莉",109:"黑泽露比",
+201:"上原步梦",202:"中须霞",203:"樱坂雫",204:"朝香果林",205:"宫下爱",206:"近江彼方",207:"优木雪菜",208:"艾玛·维尔德",209:"天王寺璃奈",210:"三船栞子",211:"米娅·泰勒",212:"钟岚珠"};
 function member_icon_gen(memid){
-    if(memid !== 210) return `<ASCharaIcon id=${memid} w=80/>`;
-    else return `<ASImg id=538328 w=80/>`
+    if(memid == 210) return `<ASImg id=538328 w=80/>`;
+    else if(memid == 211) return `<ASImg id=198324 w=80/>`;
+    else if(memid == 212) return `<ASImg id=120677 w=80/>`;
+    else return `<ASCharaIcon id=${memid} w=80/>`
 }
 function inverse_wavetext(str){
     let type,arg;
@@ -209,6 +214,8 @@ async function story_dlp_epilogs(unlock_pat,live_diff_id){
                 if(live_diff_id===10003102||live_diff_id===10003202||live_diff_id===10003302){rej(`Will skip natsuiro ${live_diff_id}`);return;}
                 if(live_diff_id===11014102||live_diff_id===11014202||live_diff_id===11014302){rej(`Will skip A2Z ${live_diff_id}`);return;}
                 if(live_diff_id===12034102||live_diff_id===12034202||live_diff_id===12034302){rej(`Will skip TKMK17 ${live_diff_id}`);return;}
+                if(live_diff_id===12074102||live_diff_id===12074202||live_diff_id===12074302){rej(`Will skip LLL ${live_diff_id}`);return;}
+                if(live_diff_id===12090102||live_diff_id===12090202||live_diff_id===12090302){rej(`Will skip mazetown ${live_diff_id}`);return;}
                 res({'sort_key':parseInt(live_diff_id/100)});break;
             case 7:res({'sort_key':parseInt(live_diff_id/100/10)*10+50000+live_diff_id%10});break;
             case 5:case 8:rej(`Will skip SBL or intro chart ${live_diff_id}`);break;
