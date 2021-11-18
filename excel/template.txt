@@ -54,17 +54,49 @@
 ! 档位 !! 相对输出 !! 列表
 {3}
 {{!}}}
+|主奶盾综合=
+{{{!}} class="wikitable mw-collapsible"
+{{!}}-
+! 档位 !! 相对输出 !! 列表
+{21}
+{{!}}}
+|副奶盾综合=
+{{{!}} class="wikitable mw-collapsible"
+{{!}}-
+! 档位 !! 相对输出 !! 列表
+{22}
+{{!}}}
 }}</includeonly><noinclude>
-=== 前排输出 ===
+=== 筛选器 ===
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="1" data-BSD-Action="/2-,3-,4-,21-,22-">前排输出</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="2" data-BSD-Action="/1-,3-,4-,21-,22-">上限前排输出</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="3" data-BSD-Action="/1-,2-,4-,21-,22-">奶盾输出</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="4" data-BSD-Action="/1-,2-,3-,21-,22-">奶盾耐久</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="21" data-BSD-Action="/1-,2-,3-,4-,22-">主奶盾综合</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="22" data-BSD-Action="/1-,2-,3-,4-,21-">副奶盾综合</span>
 {{LevelExcel|ranking=filter}}
+<div class="button-switch-display" data-BSD-Condition="1">
+<span style="font-weight:bold">前排输出</span>
 {{LevelExcel|ranking=前排输出|type=12}}
-=== 上限前排输出 ===
-{{LevelExcel|ranking=filter}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="2">
+<span style="font-weight:bold">上限前排输出</span>
 {{LevelExcel|ranking=上限前排输出|type=11}}
-=== 奶盾输出 ===
-{{LevelExcel|ranking=filter}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="3">
+<span style="font-weight:bold">奶盾输出</span>
 {{LevelExcel|ranking=奶盾输出|type=12}}
-=== 奶盾耐久 ===
-{{LevelExcel|ranking=filter}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="4">
+<span style="font-weight:bold">奶盾耐久</span>
 {{LevelExcel|ranking=奶盾耐久|type=12}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="21">
+<span style="font-weight:bold">主奶盾综合</span>
+{{LevelExcel|ranking=主奶盾综合|type=12}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="22">
+<span style="font-weight:bold">副奶盾综合</span>
+{{LevelExcel|ranking=副奶盾综合|type=12}}
+</div>
 </noinclude>
