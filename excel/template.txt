@@ -68,7 +68,7 @@
 {{!}}}
 }}</includeonly><noinclude>
 === 筛选器 ===
-<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="1" data-BSD-Action="/2-,3-,4-,21-,22-">前排输出</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="1" data-BSD-Action="/2-,3-,4-,21-,22-" data-BSD-Activated="true">前排输出</span>
 <span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="2" data-BSD-Action="/1-,3-,4-,21-,22-">上限前排输出</span>
 <span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="3" data-BSD-Action="/1-,2-,4-,21-,22-">奶盾输出</span>
 <span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="4" data-BSD-Action="/1-,2-,3-,21-,22-">奶盾耐久</span>
