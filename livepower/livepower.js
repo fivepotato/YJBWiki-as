@@ -1,3 +1,4 @@
+"use strict";
 const DIR_SRC_DATABASE_MASTERDATA = "../masterdata.db";
 
 //dependents
@@ -13,13 +14,135 @@ masterdata.EACH = util.promisify(masterdata.each);
 masterdata.ALL = util.promisify(masterdata.all);
 
 (async () => {
-    const cards = await masterdata.ALL(`select id,role,max_passive_skill_slot from m_card`);
+    const cards = await masterdata.ALL(`select id,role,max_passive_skill_slot,member_m_id,card_attribute from m_card`);
     let actions = [];
     for (let card of cards) {
-        actions.push(full_livepower(card.id, card.role, card.max_passive_skill_slot));
+        actions.push(full_livepower(card));
     }
-    const list = await Promise.all(actions);
-    const grouping = range_group(list);
+    const list = await Promise.all(actions).then((cardlist) => {
+        cardlist.sort((a, b) => { return b.livepower - a.livepower });
+        const range_description = {};
+        range_description[3] = {
+            3800: "A+",
+            3600: "A",
+            3400: "A-",
+            3200: "B+",
+            3000: "B",
+            2800: "B-",
+            2600: "C+",
+            2400: "C",
+            2200: "C-",
+            2000: "D",
+        };
+        range_description[2] = {
+            2500: "A+",
+            2400: "A",
+            2300: "A-",
+            2200: "B+",
+            2100: "B",
+            2000: "B-",
+            1850: "C+",
+            1700: "C",
+            1550: "C-",
+            1400: "D",
+        };
+        range_description[1] = {
+            1300: "A",
+            1200: "B",
+            1100: "C",
+            1000: "D",
+        };
+        const range_borders = {};
+        for (let rarity of Object.keys(range_description)) {
+            range_borders[rarity] = Object.keys(range_description[rarity]).sort((a, b) => -a + b);
+        };
+        const results = { 1: {}, 2: {}, 3: {} };
+        let state = { 1: 0, 2: 0, 3: 0 };
+        for (let card of cardlist) {
+            const filters = card.filters;
+            const rarity = card.id.toString()[5];
+            while (range_borders[rarity][state[rarity]] > card.livepower) state[rarity]++;
+            const current_range_border = range_borders[rarity][state[rarity]];
+            if (!results[rarity][current_range_border]) results[rarity][current_range_border] = [];
+            results[rarity][current_range_border].push(`<span class="button-switch-display" data-BSD-Condition="(100${filters[0]}&#124;1050)&(160${filters[6]}&#124;1650)&(170${filters[7]
+                }&#124;1750)" data-hover-text="Parameters: ${parseInt(card.detail.parameter)
+                }&#10;Active Skill: ${card.detail.skill.active_skill
+                }&#10;Ability Passive: ${parseInt(card.detail.skill.passive_skill_passive + card.detail.passive_up)
+                }&#10;Ability Active: ${card.detail.skill.passive_skill_active}&#10;">{{CardLevelDescription|${card.id}|${card.livepower}|{{{2|12}}}}}</span>`);
+        }
+        //return results;
+
+        //text generation
+        const wikitable_header = "{{{!}} class=\"wikitable mw-collapsible{{#if:{{{2|}}}| |&#32;hover-swap-image-trigger}}\" \n{{!}}-\n! 档位 !! 列表";
+        const wikitable_end = "{{!}}}";
+        const wikitable_tables = { 1: null, 2: null, 3: null };
+        for (let rarity in results) {
+            const range_group = results[rarity];
+            const range_border = range_borders[rarity];
+            const wikitable_lines = [];
+
+            let open = false;
+            for (let iter in range_border) {
+                const border = range_border[iter];
+
+                if (range_group[border]) open = true;
+                else if (open) range_group[border] = [];
+                else continue;
+
+                const wikitable_range = `[${border},${iter === "0" ? "∞" : range_border[iter - 1]})`;
+                const wikitable_line = `{{!}}- {{#switch:{{{2}}}|11= class="hover-swap-image-trigger" |12= class="hover-swap-image-trigger" }}\n! ${range_description[rarity][border]}<br>${wikitable_range}<br>${range_group[border].length} \n{{!}} ${range_group[border].join(' ')}`;
+                wikitable_lines.push(wikitable_line);
+            }
+            wikitable_tables[rarity] = wikitable_header + '\n' + wikitable_lines.join('\n') + '\n' + wikitable_end;
+        }
+        const output = `<includeonly>{{#switch:{{{1}}}
+|filter=<div style="display:flex;flex-wrap:wrap;"><div style="flex-grow:1;">
+学校
+<span class="button-switch-display-activate" data-BSD-Activate="1050" data-BSD-Activated="true" data-BSD-Action="/1000-,1001-,1002-"><ASImg id=7379 w=32/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1000" data-BSD-Action="/1050-"><ASImg id=1277 w=72/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1001" data-BSD-Action="/1050-"><ASImg id=2275 w=72/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1002" data-BSD-Action="/1050-"><ASImg id=3976 w=72/></span>
+</div>
+<div style="flex-grow:1;">
+属性
+<span class="button-switch-display-activate" data-BSD-Activate="1650" data-BSD-Activated="true" data-BSD-Action="/1601-,1602-,1603-,1604-,1605-,1606-"><ASImg id=7379 w=32/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1601" data-BSD-Action="/1650-"><ASImg id=355 w=32/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1602" data-BSD-Action="/1650-"><ASImg id=5528 w=32/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1603" data-BSD-Action="/1650-"><ASImg id=8513 w=32/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1604" data-BSD-Action="/1650-"><ASImg id=234 w=32/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1605" data-BSD-Action="/1650-"><ASImg id=5042 w=32/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1606" data-BSD-Action="/1650-"><ASImg id=4859 w=32/></span>
+</div>
+<div style="flex-grow:1;">
+类型
+<span class="button-switch-display-activate" data-BSD-Activate="1750" data-BSD-Activated="true" data-BSD-Action="/1701-,1702-,1703-,1704-"><ASImg id=7379 w=32/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1701" data-BSD-Action="/1750-"><ASImg id=3542 w=32/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1702" data-BSD-Action="/1750-"><ASImg id=1376 w=32/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1703" data-BSD-Action="/1750-"><ASImg id=7580 w=32/></span>
+<span class="button-switch-display-activate" data-BSD-Activate="1704" data-BSD-Action="/1750-"><ASImg id=3897 w=32/></span>
+</div>
+|R=${wikitable_tables[1]}
+|SR=${wikitable_tables[2]}
+|UR=${wikitable_tables[3]}
+|ERROR!({{{1}}})}}</includeonly><noinclude>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="30" data-BSD-Action="/20-,10-" data-BSD-Activated="true"><ASImg id=542 w=32/>Ultra Rare</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="20" data-BSD-Action="/30-,10-"><ASImg id=8567 w=32/>Super Rare</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="10" data-BSD-Action="/30-,20-"><ASImg id=1829 w=32/>Rare</span>
+<div class="button-switch-display" data-BSD-Condition="10|20|30">{{LevelLivePower|filter}}</div>
+<div class="button-switch-display" data-BSD-Condition="30">
+<span style="font-weight:bold;">Ultra Rare</span>
+{{LevelLivePower|UR|14}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="20">
+<span style="font-weight:bold;">Super Rare</span>
+{{LevelLivePower|SR|12}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="10">
+<span style="font-weight:bold;">Rare</span>
+{{LevelLivePower|R}}
+</div></noinclude>`;
+        fs.writeFileSync("Template%COLON%LevelLivePower.txt", output);
+    })
     /*
     list.sort((a,b)=>{return b.livepower-a.livepower});
     for(let it of list){
@@ -28,83 +151,8 @@ masterdata.ALL = util.promisify(masterdata.all);
     */
 })()
 
-const range_group = (cardlist) => {
-    cardlist.sort((a, b) => { return b.livepower - a.livepower });
-    const range_description = {};
-    range_description[3] = {
-        3800: "A+",
-        3600: "A",
-        3400: "A-",
-        3200: "B+",
-        3000: "B",
-        2800: "B-",
-        2600: "C+",
-        2400: "C",
-        2200: "C-",
-        2000: "D",
-    };
-    range_description[2] = {
-        2500: "A+",
-        2400: "A",
-        2300: "A-",
-        2200: "B+",
-        2100: "B",
-        2000: "B-",
-        1850: "C+",
-        1700: "C",
-        1550: "C-",
-        1400: "D",
-    };
-    range_description[1] = {
-        1300: "A",
-        1200: "B",
-        1100: "C",
-        1000: "D",
-    };
-    const range_borders = {};
-    for (let rarity of Object.keys(range_description)) {
-        range_borders[rarity] = Object.keys(range_description[rarity]).sort((a, b) => -a + b);
-    };
-    const results = { 1: {}, 2: {}, 3: {} };
-    let state = { 1: 0, 2: 0, 3: 0 };
-    for (let card of cardlist) {
-        const rarity = card.id.toString()[5];
-        while (range_borders[rarity][state[rarity]] > card.livepower) state[rarity]++;
-        const current_range_border = range_borders[rarity][state[rarity]];
-        if (!results[rarity][current_range_border]) results[rarity][current_range_border] = [];
-        results[rarity][current_range_border].push(`{{CardLevelDescription|${card.id}|${card.livepower}|{{{2|2}}}}}`);
-    }
-    //return results;
-
-    //text generation
-    const wikitable_header = "{{{!}} class=\"wikitable mw-collapsible\" \n{{!}}-\n! 档位 !! LivePower !! 列表";
-    const wikitable_end = "{{!}}}";
-    const wikitable_tables = { 1: null, 2: null, 3: null };
-    for (let rarity in results) {
-        const range_group = results[rarity];
-        const range_border = range_borders[rarity];
-        const wikitable_lines = [];
-
-        let open = false;
-        for (let iter in range_border) {
-            const border = range_border[iter];
-
-            if (range_group[border]) open = true;
-            else if (open) range_group[border] = [];
-            else continue;
-
-            const wikitable_range = `[${border},${iter === "0" ? "∞" : range_border[iter - 1]})`;
-            const wikitable_line = `{{!}}-\n! ${range_description[rarity][border]}<br>${range_group[border].length} \n{{!}} ${wikitable_range} {{!}}{{!}} ${range_group[border].join(' ')}`;
-            wikitable_lines.push(wikitable_line);
-        }
-        wikitable_tables[rarity] = wikitable_header + '\n' + wikitable_lines.join('\n') + '\n' + wikitable_end;
-    }
-    const output = `<includeonly>{{#switch:{{{1}}}\n|1=${wikitable_tables[1]}\n|2=${wikitable_tables[2]}\n|3=${wikitable_tables[3]}\n|ERROR!({{{1}}})}}</includeonly><noinclude>{{LevelLivePower|3|2}}{{LevelLivePower|2|1}}{{LevelLivePower|1|2}}</noinclude>`;
-    fs.writeFileSync("Template%COLON%LevelLivePower.txt", output);
-}
-
-const full_livepower = (async (card_master_id, card_type, slots) => {
-    const { raw_livepower, passive_skill } = await getsklp(card_master_id);
+const full_livepower = (async ({ id: card_master_id, role: card_type, max_passive_skill_slot: slots, card_attribute, member_m_id }) => {
+    const { raw_livepower, passive_skill, detail_livepower } = await getsklp(card_master_id);
     const passive_skill_effect = await getskill(passive_skill[passive_skill.length - 1], 'id');
     let level = 0;
     //LEVEL
@@ -251,9 +299,10 @@ const full_livepower = (async (card_master_id, card_type, slots) => {
 
     //console.log(appeal,stamina,technique,passive_lp,parseInt(appeal*0.05+stamina*0.04+technique*0.04+passive_lp));
     return {
-        'id': card_master_id,
-        'livepower': parseInt(inspire_lp + appeal * 0.05 * 2.05 + stamina * 0.04 * 1.05 + technique * 0.04 * 1.1 + passive_lp + raw_livepower),
-        'detail': { stat: appeal * 0.05 + stamina * 0.04 + technique * 0.04, passiveup: passive_lp, skill: raw_livepower }
+        id: card_master_id,
+        livepower: parseInt(inspire_lp + appeal * 0.05 * 2.05 + stamina * 0.04 * 1.05 + technique * 0.04 * 1.1 + passive_lp + raw_livepower),
+        detail: { parameter: appeal * 0.05 + stamina * 0.04 + technique * 0.04, passive_up: passive_lp, skill: detail_livepower, inspire: inspire_lp },
+        filters: [Math.floor(member_m_id / 100), 1, 2, 3, 4, 5, card_attribute, card_type],
     };
 })
 
@@ -301,7 +350,12 @@ async function getsklp(card_master_id) {
     //console.log(results_2);
     return {
         raw_livepower: results_2[0][alm - 1].evaluation_param + results_2[1][plm1 - 1].evaluation_param + (results_2[2][0] ? results_2[2][plm2 - 1].evaluation_param : 0),
-        passive_skill: results_2[1]
+        passive_skill: results_2[1],
+        detail_livepower: {
+            active_skill: results_2[0][alm - 1].evaluation_param,
+            passive_skill_passive: results_2[1][plm1 - 1].evaluation_param,
+            passive_skill_active: (results_2[2][0] ? results_2[2][plm2 - 1].evaluation_param : 0),
+        }
     }
 }
 async function getskill(obj, skill_id_key) {
