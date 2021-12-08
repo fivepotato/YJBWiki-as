@@ -64,16 +64,26 @@ masterdata.ALL = util.promisify(masterdata.all);
             while (range_borders[rarity][state[rarity]] > card.livepower) state[rarity]++;
             const current_range_border = range_borders[rarity][state[rarity]];
             if (!results[rarity][current_range_border]) results[rarity][current_range_border] = [];
+            /*
             results[rarity][current_range_border].push(`<span class="button-switch-display" data-BSD-Condition="(100${filters[0]}&#124;1050)&(160${filters[6]}&#124;1650)&(170${filters[7]
                 }&#124;1750)" data-hover-text="Parameters: ${parseInt(card.detail.parameter)
                 }&#10;Active Skill: ${card.detail.skill.active_skill
                 }&#10;Ability Passive: ${parseInt(card.detail.skill.passive_skill_passive + card.detail.passive_up)
                 }&#10;Ability Active: ${card.detail.skill.passive_skill_active}&#10;">{{CardLevelDescription|${card.id}|${card.livepower}|{{{2|12}}}}}</span>`);
+                */
+            results[rarity][current_range_border].push(`{{CardIconText|${card.id}|${card.livepower}|char=${filters[10]}|attr=${filters[6]}|type=${filters[7]}|hover=Parameters: ${parseInt(card.detail.parameter)
+                }&#10;Active Skill: ${card.detail.skill.active_skill
+                }&#10;Ability Passive: ${parseInt(card.detail.skill.passive_skill_passive + card.detail.passive_up)
+                }&#10;Ability Active: ${card.detail.skill.passive_skill_active
+                }&#10;Inspire Skills: ${card.detail.inspire
+                }}}`);
+
         }
         //return results;
 
         //text generation
-        const wikitable_header = "{{{!}} class=\"wikitable mw-collapsible{{#if:{{{2|}}}| |&#32;hover-swap-image-trigger}}\" \n{{!}}-\n! 档位 !! 列表";
+        /*
+        const wikitable_header = "{{{!}} class=\"wikitable mw-collapsible\" \n{{!}}-\n! 档位 !! 列表";
         const wikitable_end = "{{!}}}";
         const wikitable_tables = { 1: null, 2: null, 3: null };
         for (let rarity in results) {
@@ -90,37 +100,46 @@ masterdata.ALL = util.promisify(masterdata.all);
                 else continue;
 
                 const wikitable_range = `[${border},${iter === "0" ? "∞" : range_border[iter - 1]})`;
-                const wikitable_line = `{{!}}- {{#switch:{{{2}}}|11= class="hover-swap-image-trigger" |12= class="hover-swap-image-trigger" }}\n! ${range_description[rarity][border]}<br>${wikitable_range}<br>${range_group[border].length} \n{{!}} ${range_group[border].join(' ')}`;
+                const wikitable_line = `{{!}}- class="hover-swap-image-trigger" \n! ${range_description[rarity][border]}<br>${wikitable_range}<br>${range_group[border].length} \n{{!}} ${range_group[border].join(' ')}`;
+                wikitable_lines.push(wikitable_line);
+            }
+            wikitable_tables[rarity] = wikitable_header + '\n' + wikitable_lines.join('\n') + '\n' + wikitable_end;
+        }
+        */
+        //text generation
+        const wikitable_header = "<div class=\"grid-alter\" style=\"grid-gap:1rem 1rem;\">";
+        const wikitable_end = "</div>";
+        const wikitable_tables = { 1: null, 2: null, 3: null };
+        for (let rarity in results) {
+            const range_group = results[rarity];
+            const range_border = range_borders[rarity];
+            const wikitable_lines = [];
+
+            let open = false;
+            for (let iter in range_border) {
+                const border = range_border[iter];
+
+                if (range_group[border]) open = true;
+                else if (open) range_group[border] = [];
+                else continue;
+
+                const wikitable_range = `[${border},${iter === "0" ? "∞" : range_border[iter - 1]})`;
+                const wikitable_line = `<div class="text" style="font-weight:bold;">${range_description[rarity][border]}&#10;${wikitable_range}&#10;${range_group[border].length}</div>\n<div class="hover-swap-image-trigger">${range_group[border].join(' ')}</div>`;
                 wikitable_lines.push(wikitable_line);
             }
             wikitable_tables[rarity] = wikitable_header + '\n' + wikitable_lines.join('\n') + '\n' + wikitable_end;
         }
         const output = `<includeonly>{{#switch:{{{1}}}
-|filter=<div style="display:flex;flex-wrap:wrap;"><div style="flex-grow:1;">
-学校
-<span class="button-switch-display-activate" data-BSD-Activate="1050" data-BSD-Activated="true" data-BSD-Action="/1000-,1001-,1002-"><ASImg id=7379 w=32/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1000" data-BSD-Action="/1050-"><ASImg id=1277 w=72/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1001" data-BSD-Action="/1050-"><ASImg id=2275 w=72/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1002" data-BSD-Action="/1050-"><ASImg id=3976 w=72/></span>
-</div>
-<div style="flex-grow:1;">
-属性
-<span class="button-switch-display-activate" data-BSD-Activate="1650" data-BSD-Activated="true" data-BSD-Action="/1601-,1602-,1603-,1604-,1605-,1606-"><ASImg id=7379 w=32/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1601" data-BSD-Action="/1650-"><ASImg id=355 w=32/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1602" data-BSD-Action="/1650-"><ASImg id=5528 w=32/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1603" data-BSD-Action="/1650-"><ASImg id=8513 w=32/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1604" data-BSD-Action="/1650-"><ASImg id=234 w=32/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1605" data-BSD-Action="/1650-"><ASImg id=5042 w=32/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1606" data-BSD-Action="/1650-"><ASImg id=4859 w=32/></span>
-</div>
-<div style="flex-grow:1;">
-类型
-<span class="button-switch-display-activate" data-BSD-Activate="1750" data-BSD-Activated="true" data-BSD-Action="/1701-,1702-,1703-,1704-"><ASImg id=7379 w=32/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1701" data-BSD-Action="/1750-"><ASImg id=3542 w=32/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1702" data-BSD-Action="/1750-"><ASImg id=1376 w=32/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1703" data-BSD-Action="/1750-"><ASImg id=7580 w=32/></span>
-<span class="button-switch-display-activate" data-BSD-Activate="1704" data-BSD-Action="/1750-"><ASImg id=3897 w=32/></span>
-</div>
+|filter={{{!}} class="mw-collapsible mw-collapsed" style="width:100%;display:table;"
+{{!}}+ 筛选
+{{!}}-
+{{!}} <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;">
+  {{FilterButton|school}}
+  {{FilterButton|year}}
+  {{FilterButton|attr}}
+  {{FilterButton|type}}
+  </div>
+{{!}}}
 |R=${wikitable_tables[1]}
 |SR=${wikitable_tables[2]}
 |UR=${wikitable_tables[3]}
@@ -131,11 +150,11 @@ masterdata.ALL = util.promisify(masterdata.all);
 <div class="button-switch-display" data-BSD-Condition="10|20|30">{{LevelLivePower|filter}}</div>
 <div class="button-switch-display" data-BSD-Condition="30">
 <span style="font-weight:bold;">Ultra Rare</span>
-{{LevelLivePower|UR|14}}
+{{LevelLivePower|UR}}
 </div>
 <div class="button-switch-display" data-BSD-Condition="20">
 <span style="font-weight:bold;">Super Rare</span>
-{{LevelLivePower|SR|12}}
+{{LevelLivePower|SR}}
 </div>
 <div class="button-switch-display" data-BSD-Condition="10">
 <span style="font-weight:bold;">Rare</span>
@@ -157,25 +176,39 @@ const full_livepower = (async ({ id: card_master_id, role: card_type, max_passiv
     let level = 0;
     //LEVEL
     switch (card_master_id.toString()[5]) {
-        case '1': level = 52; break;
-        case '2': level = 68; break;
-        case '3': level = 84; break;
+        case '1':
+            level = 52;
+            break;
+        case '2':
+            level = 68;
+            break;
+        case '3':
+            level = 84;
+            break;
     }
     const [parm_level, parm_awaken, parm_tree] = await Promise.all([
         masterdata.EACH(`select * from m_card_parameter where card_m_id = ${card_master_id} and level = ${level}`),
         masterdata.EACH(`select * from m_card_awaken_parameter where card_master_id = ${card_master_id}`),
         masterdata.ALL(`select * from m_training_tree_card_param where id = ${card_master_id}`)
     ]);
-    let appeal = 0, stamina = 0, technique = 0;
+    let appeal = 0,
+        stamina = 0,
+        technique = 0;
     appeal += parm_level.appeal + parm_awaken.parameter2;
     stamina += parm_level.stamina + parm_awaken.parameter1;
     technique += parm_level.technique + parm_awaken.parameter3;
 
     for (let cell of parm_tree) {
         switch (cell.training_content_type) {
-            case 3: appeal += cell.value; break;
-            case 2: stamina += cell.value; break;
-            case 4: technique += cell.value; break;
+            case 3:
+                appeal += cell.value;
+                break;
+            case 2:
+                stamina += cell.value;
+                break;
+            case 4:
+                technique += cell.value;
+                break;
         }
     }
     //10 appeal 9 stamina 11 technique
@@ -185,60 +218,78 @@ const full_livepower = (async ({ id: card_master_id, role: card_type, max_passiv
     technique = parseInt(technique * (1 + 0.096 + 0.021));
     //OTHERS APPEAL
     const others = {
-        appeal: 15500,
-        stamina: 8500,
-        technique: 12500,
+        appeal: 16000,
+        stamina: 9500,
+        technique: 15500,
         same_attribute: 3,
         same_year: 3,
         same_school: 3,
         same_unit: 1.5,
-        same_type: { vo: 6.5, gd: 0.5, sp: 0.5, sk: 0.5 }
+        same_type: { vo: 4.5, gd: 0.5, sp: 1.5, sk: 1.5 }
     }
     const effect_1 = passive_skill_effect.skill_effect_1;
     let passive_lp = 0;
-    let other_base = 0, own_base = 0;
+    let other_base = 0,
+        own_base = 0;
     switch (passive_skill_effect.skill_effect_1.effect_type) {
-        case 10: other_base = 0.05 * others.appeal; own_base = 0.05 * appeal; break;
-        case 9: other_base = 0.04 * others.stamina; own_base = 0.04 * stamina; break;
-        case 11: other_base = 0.04 * others.technique; own_base = 0.04 * technique; break;
+        case 10:
+            other_base = 0.05 * others.appeal;
+            own_base = 0.05 * appeal;
+            break;
+        case 9:
+            other_base = 0.04 * others.stamina;
+            own_base = 0.04 * stamina;
+            break;
+        case 11:
+            other_base = 0.04 * others.technique;
+            own_base = 0.04 * technique;
+            break;
     }
     switch (passive_skill_effect.skill.skill_target_master_id1) {
-        case 1://All
+        case 1: //All
             passive_lp += 8 * other_base * effect_1.effect_value / 10000;
             passive_lp += 1 * own_base * effect_1.effect_value / 10000;
             break;
-        case 50://Group
+        case 50: //Group
             passive_lp += 8 * other_base * effect_1.effect_value / 10000;
             break;
-        case 53://Same Strategy
+        case 53: //Same Strategy
             passive_lp += 2 * other_base * effect_1.effect_value / 10000;
             passive_lp += 1 * own_base * effect_1.effect_value / 10000;
             break;
-        case 54://Same School
+        case 54: //Same School
             passive_lp += others.same_school * other_base * effect_1.effect_value / 10000;
             passive_lp += 1 * own_base * effect_1.effect_value / 10000;
             break;
-        case 55://Same Unit
+        case 55: //Same Unit
             passive_lp += others.same_unit * other_base * effect_1.effect_value / 10000;
             passive_lp += 1 * own_base * effect_1.effect_value / 10000;
             break;
-        case 56://Same Attribute
+        case 56: //Same Attribute
             passive_lp += others.same_attribute * other_base * effect_1.effect_value / 10000;
             passive_lp += 1 * own_base * effect_1.effect_value / 10000;
             break;
-        case 57://Same Type
+        case 57: //Same Type
             switch (card_type) {
-                case 1: passive_lp += others.same_type.vo * other_base * effect_1.effect_value / 10000; break;
-                case 2: passive_lp += others.same_type.sp * other_base * effect_1.effect_value / 10000; break;
-                case 3: passive_lp += others.same_type.gd * other_base * effect_1.effect_value / 10000; break;
-                case 4: passive_lp += others.same_type.sk * other_base * effect_1.effect_value / 10000; break;
+                case 1:
+                    passive_lp += others.same_type.vo * other_base * effect_1.effect_value / 10000;
+                    break;
+                case 2:
+                    passive_lp += others.same_type.sp * other_base * effect_1.effect_value / 10000;
+                    break;
+                case 3:
+                    passive_lp += others.same_type.gd * other_base * effect_1.effect_value / 10000;
+                    break;
+                case 4:
+                    passive_lp += others.same_type.sk * other_base * effect_1.effect_value / 10000;
+                    break;
             }
             passive_lp += 1 * own_base * effect_1.effect_value / 10000;
             break;
-        case 59://Self
+        case 59: //Self
             passive_lp += 1 * own_base * effect_1.effect_value / 10000;
             break;
-        case 60://Same Year
+        case 60: //Same Year
             passive_lp += 1 * own_base * effect_1.effect_value / 10000;
             passive_lp += others.same_year * other_base * effect_1.effect_value / 10000;
             break;
@@ -246,63 +297,81 @@ const full_livepower = (async ({ id: card_master_id, role: card_type, max_passiv
     const effect_2 = passive_skill_effect.skill_effect_2;
     if (effect_2) {
         switch (passive_skill_effect.skill_effect_2.effect_type) {
-            case 10: other_base = 0.05 * others.appeal; own_base = 0.05 * appeal; break;
-            case 9: other_base = 0.04 * others.stamina; own_base = 0.04 * stamina; break;
-            case 11: other_base = 0.04 * others.technique; own_base = 0.04 * technique; break;
+            case 10:
+                other_base = 0.05 * others.appeal;
+                own_base = 0.05 * appeal;
+                break;
+            case 9:
+                other_base = 0.04 * others.stamina;
+                own_base = 0.04 * stamina;
+                break;
+            case 11:
+                other_base = 0.04 * others.technique;
+                own_base = 0.04 * technique;
+                break;
         }
         switch (passive_skill_effect.skill.skill_target_master_id2) {
-            case 1://All
+            case 1: //All
                 passive_lp += 8 * other_base * effect_2.effect_value / 10000;
                 passive_lp += 1 * own_base * effect_2.effect_value / 10000;
                 break;
-            case 50://Group
+            case 50: //Group
                 passive_lp += 8 * other_base * effect_2.effect_value / 10000;
                 break;
-            case 53://Same Strategy
+            case 53: //Same Strategy
                 passive_lp += 2 * other_base * effect_2.effect_value / 10000;
                 passive_lp += 1 * own_base * effect_2.effect_value / 10000;
                 break;
-            case 54://Same School
+            case 54: //Same School
                 passive_lp += others.same_school * other_base * effect_2.effect_value / 10000;
                 passive_lp += 1 * own_base * effect_2.effect_value / 10000;
                 break;
-            case 55://Same Unit
+            case 55: //Same Unit
                 passive_lp += others.same_unit * other_base * effect_2.effect_value / 10000;
                 passive_lp += 1 * own_base * effect_2.effect_value / 10000;
                 break;
-            case 56://Same Attribute
+            case 56: //Same Attribute
                 passive_lp += others.same_attribute * other_base * effect_2.effect_value / 10000;
                 passive_lp += 1 * own_base * effect_2.effect_value / 10000;
                 break;
-            case 57://Same Type
+            case 57: //Same Type
                 switch (card_type) {
-                    case 1: passive_lp += others.same_type.vo * other_base * effect_2.effect_value / 10000; break;
-                    case 2: passive_lp += others.same_type.sp * other_base * effect_2.effect_value / 10000; break;
-                    case 3: passive_lp += others.same_type.gd * other_base * effect_2.effect_value / 10000; break;
-                    case 4: passive_lp += others.same_type.sk * other_base * effect_2.effect_value / 10000; break;
+                    case 1:
+                        passive_lp += others.same_type.vo * other_base * effect_2.effect_value / 10000;
+                        break;
+                    case 2:
+                        passive_lp += others.same_type.sp * other_base * effect_2.effect_value / 10000;
+                        break;
+                    case 3:
+                        passive_lp += others.same_type.gd * other_base * effect_2.effect_value / 10000;
+                        break;
+                    case 4:
+                        passive_lp += others.same_type.sk * other_base * effect_2.effect_value / 10000;
+                        break;
                 }
                 passive_lp += 1 * own_base * effect_2.effect_value / 10000;
                 break;
-            case 59://Self
+            case 59: //Self
                 passive_lp += 1 * own_base * effect_2.effect_value / 10000;
                 break;
-            case 60://Same Year
+            case 60: //Same Year
                 passive_lp += 1 * own_base * effect_2.effect_value / 10000;
                 passive_lp += others.same_year * other_base * effect_2.effect_value / 10000;
                 break;
         }
     }
     //Inspriation
-    other_base = 0.05 * others.appeal; own_base = 0.05 * appeal;
+    other_base = 0.05 * others.appeal;
+    own_base = 0.05 * appeal;
     const inspire_lp = slots * (8 * other_base * 0.02 + 13);
     //console.log(inspire_lp)
 
     //console.log(appeal,stamina,technique,passive_lp,parseInt(appeal*0.05+stamina*0.04+technique*0.04+passive_lp));
     return {
         id: card_master_id,
-        livepower: parseInt(inspire_lp + appeal * 0.05 * 2.05 + stamina * 0.04 * 1.05 + technique * 0.04 * 1.1 + passive_lp + raw_livepower),
-        detail: { parameter: appeal * 0.05 + stamina * 0.04 + technique * 0.04, passive_up: passive_lp, skill: detail_livepower, inspire: inspire_lp },
-        filters: [Math.floor(member_m_id / 100), 1, 2, 3, 4, 5, card_attribute, card_type],
+        livepower: parseInt(inspire_lp + appeal * 0.05 * 2.1 + stamina * 0.04 * 1.05 + technique * 0.04 * 1.15 + passive_lp + raw_livepower),
+        detail: { parameter: appeal * 0.05 * 2.1 + stamina * 0.04 * 1.05 + technique * 0.04 * 1.15, passive_up: passive_lp, skill: detail_livepower, inspire: inspire_lp },
+        filters: [0, 1, 2, 3, 4, 5, card_attribute, card_type, 8, 9, member_m_id],
     };
 })
 
@@ -312,7 +381,9 @@ async function getsklp(card_master_id) {
         masterdata.ALL(`select * from m_card_passive_skill_original where card_master_id=${card_master_id} and position=1`),
         masterdata.ALL(`select * from m_card_passive_skill_original where card_master_id=${card_master_id} and position=2`)
     ]);
-    let a = [], p1 = [], p2 = [];
+    let a = [],
+        p1 = [],
+        p2 = [];
     for (let al of results[0]) {
         a.push(masterdata.EACH(`select * from m_active_skill where id=${al.active_skill_master_id}`));
     }
@@ -323,7 +394,9 @@ async function getsklp(card_master_id) {
         p2.push(masterdata.EACH(`select * from m_passive_skill where id=${pl2.passive_skill_master_id}`));
     }
     const results_1 = await Promise.all([Promise.all(a), Promise.all(p1), Promise.all(p2)]);
-    let a_1 = [], p1_1 = [], p2_1 = [];
+    let a_1 = [],
+        p1_1 = [],
+        p2_1 = [];
     for (let al_1 of results_1[0]) {
         a_1.push(masterdata.EACH(`select * from m_skill where id=${al_1.skill_master_id}`));
     }
@@ -335,7 +408,9 @@ async function getsklp(card_master_id) {
     }
     const results_2 = await Promise.all([Promise.all(a_1), Promise.all(p1_1), Promise.all(p2_1)]);
 
-    const alm = results_2[0].length, plm1 = results_2[1].length, plm2 = results_2[2].length;
+    const alm = results_2[0].length,
+        plm1 = results_2[1].length,
+        plm2 = results_2[2].length;
     /*
     for(let al of results[0]){
         console.log('appeal skill live power',al.evaluation_param)
