@@ -118,7 +118,7 @@ const config_disabled_charts = { "12031": true, "12032": true, "12033": true, "2
         else {
             const id = difficulty_const_id,
                 id_str = (Math.floor((difficulty_const_id % 10000000) / 1000) + 10000).toString().slice(1);
-            if (config_disabled_charts[id_str]) return null;
+            if (config_disabled_charts[difficulty_const_id.toString().slice(0, 5)]) return null;
             const song_name = await dictionary_ja_k.get(`k.song_name_so${id_str}`);
             return { id, id_str, song_name, note_stamina_reduce, note_voltage_upper_limit, difficulty_const_id };
         }
