@@ -1,6 +1,8 @@
+"use strict";
 const fs = require("fs");
 const request = require("request");
 const sqlite = require("sqlite3");
+const util = require("util");
 const progress = require("progress-stream");
 const db_differ = require("./db_differ");
 const DIR_DIFF = `./diff_results/`;
@@ -8,6 +10,7 @@ const DIR_RESULT = `${DIR_DIFF}${new Date().valueOf()}/`;
 const DIR_OLD_DATABASE_MASTERDATA = `${DIR_DIFF}masterdata_old.db`;
 const DIR_OLD_DATABASE_DICTIONARY_JA_K = `${DIR_DIFF}dictionary_ja_k_old.db`;
 
+sqlite.Database.prototype.All = util.promisify(sqlite.Database.prototype.all);
 const database_download = async (dir, name) => {
     const ostream = fs.createWriteStream(`${dir}${name}.db`);
     const str = progress({
@@ -16,13 +19,15 @@ const database_download = async (dir, name) => {
     str.on('progress', (progress) => {
         console.log(name, progress.transferred);
     });
-    return await new Promise(res => {
-        request(`https://as.lovelive.eu.org/downloads/${name}.db`)
-            .pipe(str)
-            .pipe(ostream)
-            .on('close', err => {
-                res(err);
-            })
+    return await new Promise((res, rej) => {
+        const req = request(`https://as.lovelive.eu.org/downloads/${name}.db`);
+        req.pipe(str).pipe(ostream).on('close', () => {
+            res();
+        });
+        req.on('error', (e) => {
+            console.log(1919810);
+            rej(e);
+        });
     })
 }
 const copyFile = async (src, des) => {
@@ -40,17 +45,34 @@ const copyFile = async (src, des) => {
     //download new database temporarily
     const p1 = database_download(DIR_DIFF, "masterdata");
     const p2 = database_download(DIR_DIFF, "dictionary_ja_k");
-    await Promise.all([p1, p2]);
+    const p = Promise.all([p1, p2]);
+    console.log(114514);
+    p.catch((onrej) => {
+        throw new Error(onrej);
+    });
+    await p;
     //try open
-    const rec = true;
+    let rec = true;
     const masterdata = new sqlite.Database(`${DIR_DIFF}masterdata.db`, (err) => {
         if (err) rec = false;
-        masterdata.close();
     });
     const dictionary_ja_k = new sqlite.Database(`${DIR_DIFF}dictionary_ja_k.db`, (err) => {
         if (err) rec = false;
-        dictionary_ja_k.close();
     });
+    await masterdata.All(`select * from sqlite_master`).catch((e) => {
+        console.log(e);
+        rec = false;
+        console.log("masterdata database file download error");
+    });
+    await dictionary_ja_k.All(`select * from sqlite_master`).catch((e) => {
+        console.log(e);
+        rec = false;
+        console.log("dictionary_ja_k database file download error");
+    });
+
+    masterdata.close();
+    dictionary_ja_k.close();
+
     if (rec === false) {
         console.log("Download Failed.");
         return;
@@ -84,4 +106,6 @@ const copyFile = async (src, des) => {
         console.log("saving changes from dictionary_ja_k.db");
         copyFile(`${DIR_DIFF}dictionary_ja_k.db`, `${DIR_RESULT}dictionary_ja_k.db`)
     }
-})()
+})().catch((e) => {
+    console.log('error:???', e);
+})
