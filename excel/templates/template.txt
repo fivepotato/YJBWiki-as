@@ -1,0 +1,103 @@
+<includeonly>{{#switch:{{{ranking|前排输出}}}
+|filter={{{!}} class="mw-collapsible mw-collapsed" style="width:100%;display:table;"
+{{!}}+ 筛选
+{{!}}-
+{{!}} <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;">
+  {{FilterButton|school}}
+  {{FilterButton|year}}
+  {{FilterButton|rare}}
+  {{FilterButton|attr}}
+  {{FilterButton|type}}
+  </div>
+{{!}}}
+|前排输出={{{!}} class="wikitable mw-collapsible"
+{{!}}-
+! 档位 !! 列表
+{0}
+{{!}}}
+|上限前排输出=
+{{{!}} class="wikitable mw-collapsible"
+{{!}}-
+! 档位 !! 列表
+{1}
+{{!}}}
+|奶盾输出=
+{{{!}} class="wikitable mw-collapsible"
+{{!}}-
+! 档位 !! 列表
+{2}
+{{!}}}
+|奶盾耐久=
+{{{!}} class="wikitable mw-collapsible"
+{{!}}-
+! 档位 !! 列表
+{3}
+{{!}}}
+|后排输出=
+{{{!}} class="wikitable mw-collapsible"
+{{!}}-
+! 档位 !! 列表
+{4}
+{{!}}}
+|好友支援=
+{{{!}} class="wikitable mw-collapsible"
+{{!}}-
+! 档位 !! 列表
+{5}
+{{!}}}
+|主奶盾综合=
+{{{!}} class="wikitable mw-collapsible"
+{{!}}-
+! 档位 !! 列表
+{21}
+{{!}}}
+|副奶盾综合=
+{{{!}} class="wikitable mw-collapsible"
+{{!}}-
+! 档位 !! 列表
+{22}
+{{!}}}
+}}</includeonly><noinclude>
+=== 筛选器 ===
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="1" data-BSD-Action="/2-,3-,4-,5-,6-,21-,22-" data-BSD-Activated="true">前排输出</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="2" data-BSD-Action="/1-,3-,4-,5-,6-,21-,22-">上限前排输出</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="3" data-BSD-Action="/1-,2-,4-,5-,6-,21-,22-">奶盾输出</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="4" data-BSD-Action="/1-,2-,3-,5-,6-,21-,22-">奶盾耐久</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="5" data-BSD-Action="/1-,2-,3-,4-,6-,21-,22-">后排输出</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="6" data-BSD-Action="/1-,2-,3-,4-,5-,21-,22-">好友支援</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="21" data-BSD-Action="/1-,2-,3-,4-,5-,6-,22-">主奶盾综合</span>
+<span style="font-weight:bold;" class="button-switch-display-activate" data-BSD-Activate="22" data-BSD-Action="/1-,2-,3-,4-,5-,6-,21-">副奶盾综合</span>
+{{LevelExcel|ranking=filter}}
+<div class="button-switch-display" data-BSD-Condition="1">
+<span style="font-weight:bold">前排输出</span>
+{{LevelExcel|ranking=前排输出|type=12}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="2">
+<span style="font-weight:bold">上限前排输出</span>
+{{LevelExcel|ranking=上限前排输出|type=11}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="3">
+<span style="font-weight:bold">奶盾输出</span>
+{{LevelExcel|ranking=奶盾输出|type=12}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="4">
+<span style="font-weight:bold">奶盾耐久</span>
+{{LevelExcel|ranking=奶盾耐久|type=12}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="5">
+<span style="font-weight:bold">后排输出</span>
+{{LevelExcel|ranking=后排输出|type=12}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="6">
+<span style="font-weight:bold">好友支援</span>
+{{LevelExcel|ranking=好友支援|type=12}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="21">
+<span style="font-weight:bold">主奶盾综合</span>
+{{LevelExcel|ranking=主奶盾综合|type=12}}
+</div>
+<div class="button-switch-display" data-BSD-Condition="22">
+<span style="font-weight:bold">副奶盾综合</span>
+{{LevelExcel|ranking=副奶盾综合|type=12}}
+</div>
+</noinclude>

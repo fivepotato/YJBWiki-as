@@ -1,0 +1,5 @@
+{| class="wikitable mw-collapsible"
+|-
+! 档位 !! 列表
+{lines}
+|}
