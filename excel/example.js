@@ -21,7 +21,7 @@ const main = async () => {
     const sheet = workbook.Sheets["卡片强度"];
     const structure = {};
     let classify_line2 = null;
-    for (let col = 2; col <= 146; col++) {
+    for (let col = 2; col <= 300; col++) {
         const line2 = sheet[`${table_column(col)}2`];
         const line3 = sheet[`${table_column(col)}3`];
         if (!line3) continue;
@@ -102,7 +102,7 @@ const main = async () => {
     }
     //上限前排输出
     {
-        const border = [123, 121, 119, 117, 115, 113, 111];//1
+        const border = [124, 121.5, 119, 117, 115, 113, 111];//1
         const multipler = 100;
         const border_description = ["SS+", "SS-", "S+", "S-", "A+", "A-", "B+"];//2
         const texts = border.map(() => []);
