@@ -40,19 +40,15 @@ const copyFile = async (src, des) => {
         })
     })
 }
-
-(async () => {
-    //download new database temporarily
-    const p1 = database_download(DIR_DIFF, "masterdata");
-    const p2 = database_download(DIR_DIFF, "dictionary_ja_k");
-    const p = Promise.all([p1, p2]);
-    console.log(114514);
-    p.catch((onrej) => {
-        throw new Error(onrej);
-    });
-    await p;
-    //try open
+async function check_new_availbility() {
     let rec = true;
+    try {
+        fs.statSync(`${DIR_DIFF}masterdata.db`);
+        fs.statSync(`${DIR_DIFF}dictionary_ja_k.db`);
+    } catch (e) {
+        console.log(e);
+        return false;
+    }
     const masterdata = new sqlite.Database(`${DIR_DIFF}masterdata.db`, (err) => {
         if (err) rec = false;
     });
@@ -74,10 +70,35 @@ const copyFile = async (src, des) => {
     dictionary_ja_k.close();
 
     if (rec === false) {
-        console.log("Download Failed.");
+        console.log("SQLite file invalid.");
+        return false;
+    }
+    return true;
+}
+
+(async () => {
+    //download new database temporarily
+    if (process.argv[2] === "nodownload") {
+        console.log("download skipped");
+    } else {
+        const p1 = database_download(DIR_DIFF, "masterdata");
+        const p2 = database_download(DIR_DIFF, "dictionary_ja_k");
+        const p = Promise.all([p1, p2]);
+        console.log("download start");
+        p.catch((onrej) => {
+            throw new Error(onrej);
+        });
+        await p;
+    }
+
+    //try open
+    let rec = await check_new_availbility();
+
+    if (rec === false) {
+        console.log("New database Error, please download again.");
         return;
     }
-    console.log("Download End.");
+    console.log("New database Available");
 
     //move old database
     await copyFile('./masterdata.db', DIR_OLD_DATABASE_MASTERDATA);
@@ -85,26 +106,29 @@ const copyFile = async (src, des) => {
     //move new database
     await copyFile(`${DIR_DIFF}masterdata.db`, './masterdata.db');
     await copyFile(`${DIR_DIFF}dictionary_ja_k.db`, './dictionary_ja_k.db');
+    //delete temporary file
+    fs.unlinkSync(`${DIR_DIFF}masterdata.db`);
+    fs.unlinkSync(`${DIR_DIFF}dictionary_ja_k.db`);
 
-    console.log("Main database updated.")
+    console.log("Main database updated.");
 
     //start diff log
     fs.mkdir(DIR_RESULT, (err) => { if (err) throw new Error(err) });
     console.log("Start diffing masterdata.db and dictionary_ja_k.db");
-    const d1 = db_differ.db_diff(DIR_RESULT, DIR_OLD_DATABASE_MASTERDATA, `${DIR_DIFF}masterdata.db`, "abstract_masterdata.txt");
-    const d2 = db_differ.db_diff(DIR_RESULT, DIR_OLD_DATABASE_DICTIONARY_JA_K, `${DIR_DIFF}dictionary_ja_k.db`, "abstract_dictionary_ja_k.txt");
+    const d1 = db_differ.db_diff(DIR_RESULT, DIR_OLD_DATABASE_MASTERDATA, `./masterdata.db`, "abstract_masterdata.txt");
+    const d2 = db_differ.db_diff(DIR_RESULT, DIR_OLD_DATABASE_DICTIONARY_JA_K, `./dictionary_ja_k.db`, "abstract_dictionary_ja_k.txt");
     const [mCh, dCh] = await Promise.all([d1, d2]);
-    if (mCh === false) console.log("no change from masterdata.db");
+    if (mCh === false) console.log("NO CHANGE from masterdata.db");
     else {
         //save new database to result directory
         console.log("saving changes from masterdata.db");
-        copyFile(`${DIR_DIFF}masterdata.db`, `${DIR_RESULT}masterdata.db`);
+        copyFile(`./masterdata.db`, `${DIR_RESULT}masterdata.db`);
     }
-    if (dCh === false) console.log("no change from dictionary_ja_k.db");
+    if (dCh === false) console.log("NO CHANGE from dictionary_ja_k.db");
     else {
         //save new database to result directory
         console.log("saving changes from dictionary_ja_k.db");
-        copyFile(`${DIR_DIFF}dictionary_ja_k.db`, `${DIR_RESULT}dictionary_ja_k.db`)
+        copyFile(`./dictionary_ja_k.db`, `${DIR_RESULT}dictionary_ja_k.db`)
     }
 })().catch((e) => {
     console.log('error:???', e);
