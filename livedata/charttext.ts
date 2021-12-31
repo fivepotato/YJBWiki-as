@@ -727,6 +727,10 @@ async function difficulty_gimmick_generation(const_info: difficulty_const_info, 
 }
 
 async function main() {
+    
+    try { await fsPromises.stat(DATA_CACHE) } catch (e) { await fsPromises.mkdir(DATA_CACHE); }
+    try { await fsPromises.stat("./audio_cache/") } catch (e) { await fsPromises.mkdir("./audio_cache/"); }
+    
     const page_map_live = await grouping_2d_3d();
 
     page_map_live.forEach(async (l, n) => {
