@@ -48,7 +48,7 @@ enum note_actions { normal = 1, up = 4, down, left, right }
 enum note_types {
     normal = 1,
     long_start, long_end,
-    ac_start, ac_end,
+    ac_start, ac_end, set_wonderful
 }
 enum wave_mission_types {
     gain_voltage = 1,
@@ -312,8 +312,8 @@ function chart_replace_judge({ live_difficulty_id: id1, live_difficulty_type: t1
             //console.log(`FULL REPLACE on ${id1} - ${id2}, type 1`, id1, t1, p1, id2, t2, p2);
             return true;
         } else {
-            //其中一个是4开头 只允许上级
-            if (t1 === difficulty_difficulties.advanced && (first1 === "4" || first2 === "4")) {
+            //其中一个是4开头 只允许15开头的上级
+            if (t1 === difficulty_difficulties.advanced && (first1 === "4" && ["1", "5"].indexOf(first2) !== -1 || first2 === "4" && ["1", "5"].indexOf(first1) !== -1)) {
                 //console.log(`FULL REPLACE on ${id1} - ${id2}, type 1`, id1, t1, p1, id2, t2, p2);
                 return true;
             }
@@ -368,9 +368,7 @@ async function page_generation(live_ids_3d: number[], live_ids_2d: number[]) {
     // TODO: group by music_id
     // music_id和2D/3D一一对应，不需要
 
-    console.log(live_ids_3d, live_ids_2d);
     const diffs_3d = await music_difficulties_generation(live_ids_3d), diffs_2d = await music_difficulties_generation(live_ids_2d);
-    //console.log(diffs_3d);
     // Step 5
 
     const [各难度信息_2D, 各难度信息_3D] = await Promise.all([diffs_2d, diffs_3d].map(async (diffs) => {
@@ -381,6 +379,8 @@ async function page_generation(live_ids_3d: number[], live_ids_2d: number[]) {
         const tmp_note_count_for_story_difficulty_compare = { [difficulty_difficulties.beginner]: null, [difficulty_difficulties.intermediate]: null, [difficulty_difficulties.advanced]: null };
         for (const [difficulty_id, { difficulty, difficulty_const, descriptions_live, descriptions_note, descriptions_wave, epilog }] of diffs.difficulties.entries()) {
             if ([unlock_patterns.permanent, unlock_patterns.eliminated, unlock_patterns.expert_challenge, unlock_patterns.daily, unlock_patterns.from_main_story, unlock_patterns.from_bond_story].indexOf(difficulty.unlock_pattern) === -1) continue;
+            //只能有一个1开头的初中上级曲目
+            if (difficulty_id.toString()[0] === "1" && difficulty.live_difficulty_type <= 30 && tmp_note_count_for_story_difficulty_compare[difficulty.live_difficulty_type]) continue;
 
             const texts = [] as string[];
             texts.push(`=== <ASCommonIcon name="icon_attribute_${difficulty.default_attribute}" w=26/>${difficulty_id.toString()[0] === "2" ? "活动" : ""}${{ 10: "初级", 20: "中级", 30: "上级", 35: "上级+", 37: "Challenge" }[difficulty.live_difficulty_type]} ===`);
@@ -538,7 +538,7 @@ async function music_difficulties_generation(live_ids: number[]) {
                 if (is_full_replace) {
                     try {
                         chart_raw = JSON.parse((await fsPromises.readFile(`${DIR_SRC_CHARTS}${difficulty_rep.live_difficulty_id}.json`)).toString()) as chart_t;
-                        console.log(`FULL REPLACE ON ${live_difficulty_id} <- ${difficulty_rep.live_difficulty_id}`)
+                        //console.log(`FULL REPLACE on ${live_difficulty_id} <- ${difficulty_rep.live_difficulty_id}`);
                         break;
                     } catch (e) { continue; }
                 } else continue;
@@ -549,6 +549,7 @@ async function music_difficulties_generation(live_ids: number[]) {
             || chart_raw.live_stage as chart_t
             || chart_raw as chart_t)
             || null;
+        if (!chart && live_difficulty_id.toString()[0] !== "4") console.log(`WARNING ${live_difficulty_id} available chart not found`);
 
         result_map.set(live_difficulty_id, await difficulty_gimmick_generation(const_info, chart));
     }
@@ -569,7 +570,7 @@ async function difficulty_gimmick_generation(const_info: difficulty_const_info, 
     if (chart) {
         chart_note_count = chart.live_notes.reduce((note_count, { id, gimmick_id, wave_id, note_type, note_action, note_position, call_time }) => {
             switch (note_type) {
-                case note_types.normal: case note_types.long_start: case note_types.long_end:
+                case note_types.normal: case note_types.long_start: case note_types.long_end: case note_types.set_wonderful:
                     note_count += 1;
                     chart_notes.push({ id, note_type, note_action, note_position: note_position as 1 | 2, call_time });
                     if (gimmick_id !== 0) {
@@ -582,8 +583,15 @@ async function difficulty_gimmick_generation(const_info: difficulty_const_info, 
                     break;
                 case note_types.ac_end:
                     chart_waves_by_wave_id.get(wave_id).end_at_note = note_count;
+                    //30014102
+                    if (gimmick_id !== 0) {
+                        chart_notes_by_gimmick_id.has(gimmick_id) || chart_notes_by_gimmick_id.set(gimmick_id, { note_gimmick_type: null, note_gimmick_icon_type: null, skill_master_id: null, note_ids: [] });
+                        chart_notes_by_gimmick_id.get(gimmick_id).note_ids.push(note_count);
+                    }
                     break;
-                default: throw `unknown note type ${note_type}`;
+                default:
+                    console.log(difficulty.live_difficulty_id);
+                    throw `unknown note type ${note_type}`;
             }
             return note_count;
         }, 0);
@@ -594,9 +602,29 @@ async function difficulty_gimmick_generation(const_info: difficulty_const_info, 
             const ref = chart_notes_by_gimmick_id.get(gimmick_id);
             [ref.note_gimmick_type, ref.note_gimmick_icon_type, ref.skill_master_id] = [note_gimmick_type, note_gimmick_icon_type, skill_master_id];
         });
-        chart.live_wave_settings.forEach(({ id, mission_type, arg_1, reward_voltage, wave_damage }) => {
+        //防国服删gimmick措施
+        gimmick_notes.forEach(({ id: gimmick_id, note_id, note_gimmick_type, note_gimmick_icon_type, skill_master_id, name }) => {
+            let ref = chart_notes_by_gimmick_id.get(gimmick_id);
+            if (!ref) {
+                if (skill_master_id === 50023801) {
+                    //因SBL上级替代产生的400伤害键不匹配，令其匹配
+                    ref = chart_notes_by_gimmick_id.get(50000122) || chart_notes_by_gimmick_id.get(50000422);
+                } else console.log(11415, difficulty.live_difficulty_id, gimmick_notes, chart.note_gimmicks, chart_notes_by_gimmick_id, skill_master_id);
+            }
+            if (ref.skill_master_id) return;
+            [ref.note_gimmick_type, ref.note_gimmick_icon_type, ref.skill_master_id] = [note_gimmick_type, note_gimmick_icon_type, skill_master_id];
+        });
+
+        chart.live_wave_settings.forEach(({ id, mission_type: unused, arg_1: unused2, reward_voltage, wave_damage }) => {
             const ref = chart_waves_by_wave_id.get(id);
-            [ref.mission_type, ref.target_1, ref.success_voltage, ref.failure_damage] = [mission_type, arg_1, reward_voltage, wave_damage];
+            //国服No brand girls修改了AC类型
+            for (const { wave_id, name } of gimmick_waves.values()) {
+                if (id === wave_id) {
+                    const { mission_type, arg_1 } = WaveMissionNames.parse_name(name);
+                    [ref.mission_type, ref.target_1, ref.success_voltage, ref.failure_damage] = [mission_type, arg_1, reward_voltage, wave_damage];
+                    return;
+                }
+            }
         });
     } else {
         gimmick_notes.forEach(({ id: gimmick_id, note_id, note_gimmick_type, note_gimmick_icon_type, skill_master_id, name }) => {
@@ -636,16 +664,17 @@ async function difficulty_gimmick_generation(const_info: difficulty_const_info, 
         descriptions_note_p.push((async () => {
             const [, name] = (await dictionary_ja_k.get(`k.live_detail_notes_name_${gimmick_id}`)).match(/^<img .+\/>(.+)$/);
             const { skill_effect_1, skill_effect_2, skill_target_1, skill_target_2 } = await masterdata.fetch_skill(skill_master_id).catch((e) => {
-                console.log(skill_master_id, e);
+                console.log(difficulty.live_difficulty_id, gimmick_notes, chart.note_gimmicks, chart_notes_by_gimmick_id, skill_master_id, e);
                 throw "";
             })
             // const SE_2 = skill_target_2 ? `|${skill_target_2.id}|${skill_effect_2.effect_type}|${skill_effect_2.effect_value}|${skill_effect_2.calc_type}|${skill_effect_2.finish_type}|${skill_effect_2.finish_value}` : "";
             const SE = `{{GimmickNoteDescription|${note_gimmick_type}|${skill_target_1.id}|${skill_effect_1.effect_type}|${skill_effect_1.effect_value}|${skill_effect_1.calc_type}|${skill_effect_1.finish_type}|${skill_effect_1.finish_value}}}`;
             const note_gimmick_icon_type_app = ((icon) => {
-                if (icon < 14)
-                    icon += 1000; else if (icon === 25)
-                    icon = 1014; else
-                    icon += 1987; return icon;
+                if (icon < 14) icon += 1000;
+                else if (icon === 25) icon = 1014;
+                else if (icon === 53) return 2027;
+                else if (icon === 52) return 2026;
+                else icon += 1987; return icon;
             })(note_gimmick_icon_type);
             //<epilog>
             if ([52, 154].indexOf(skill_effect_1.effect_type) !== -1)
@@ -697,26 +726,31 @@ async function difficulty_gimmick_generation(const_info: difficulty_const_info, 
     return { difficulty, difficulty_const, descriptions_live, descriptions_note, descriptions_wave, epilog };
 }
 
-grouping_2d_3d().then(async (page_map_live) => {
-    ["Dream Land！Dream World！", "SUPER NOVA", "未来ハーモニー", "Hop? Stop? Nonstop!",
-        "Braveheart Coaster", "スリリング・ワンウェイ", "Queendom", "決意の光"].forEach(async (n) => {
-            const text = await page_generation(...page_map_live.get(n));
-            const file_n = n.split('\\').join('%5C').split('/').join('%2F').split(':').join('%3A').split('*').join('%2A').split('?').join('%3F').split('"').join('%22').split('<').join('%3C').split('>').join('%3E').split('|').join('%7C');
-            try {
-                const text_old = (await fsPromises.readFile(`./${file_n}.txt`)).toString();
-                const hash_old = crypt.createHash('md5'), hash = crypt.createHash('md5');
-                hash_old.update(text_old);
-                hash.update(text);
-                const a = hash_old.digest('hex'), b = hash.digest('hex');
-                if (a !== b) {
-                    console.log(n, a, "->", b);
-                    throw null;
-                }
-            } catch (e) {
-                await fsPromises.writeFile(`./${file_n}.txt`, text);
+async function main() {
+    const page_map_live = await grouping_2d_3d();
+
+    page_map_live.forEach(async (l, n) => {
+        const text = await page_generation(...page_map_live.get(n));
+        if (!text) return;
+        const file_n = n.split('\\').join('%5C').split('/').join('%2F').split(':').join('%3A').split('*').join('%2A').split('?').join('%3F').split('"').join('%22').split('<').join('%3C').split('>').join('%3E').split('|').join('%7C');
+        try {
+            const text_old = (await fsPromises.readFile(`./pages/${file_n}.txt`)).toString();
+            const hash_old = crypt.createHash('md5'), hash = crypt.createHash('md5');
+            hash_old.update(text_old);
+            hash.update(text);
+            const a = hash_old.digest('hex'), b = hash.digest('hex');
+            if (a !== b) {
+                console.log(n, a, "->", b);
+                throw null;
             }
-        })
-});
+        } catch (e) {
+            try { await fsPromises.stat(`./pages/`) } catch (e) { await fsPromises.mkdir(`./pages/`); }
+            await fsPromises.writeFile(`./pages/${file_n}.txt`, text);
+        }
+    });
+
+}
+main();
 
 // in Step 3
 const live_base_info_gen = async (live_id: number) => {
