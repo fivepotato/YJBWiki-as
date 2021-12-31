@@ -1,7 +1,11 @@
 # YJBWiki-as
 
 It's a little embarrassing that I don't really know how to push this, so I upload the codes manually. 哈哈.jpg
+
 2021/11/03 不要看下面这些东西 我懒得更新了 一切以实物为准.jpg
+
+2022/1/1 傻瓜式运行typescript方法:
+```tsc charttext --target es2021 && node charttext```
 
 ### ~~(Seemed)~~ Completed
 
