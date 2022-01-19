@@ -2,6 +2,7 @@ const sqlite = require('sqlite3');
 const util = require('util');
 const fs = require('fs');
 const format = require('string-format');
+const crypt = require("crypto");
 const masterdata = new sqlite.Database('../masterdata.db', (err) => {
     if (err) console.error(err);
 });
@@ -401,14 +402,29 @@ new Promise(async (resolve, reject) => {
                 text_final += cardtexts[i].text + '\n';
                 i++;
             }
-            let template;
-            try {
-                template = fs.readFileSync(`${DIR_FORMAT}${MEMBER_NAMES_CN[chara]}.txt`).toString();
-            } catch (e) {
-                throw new Error(e);
+
+            {
+                let template;
+                try {
+                    template = fs.readFileSync(`${DIR_FORMAT}${MEMBER_NAMES_CN[chara]}.txt`).toString();
+                } catch (e) {
+                    throw new Error(e);
+                }
+                const text = template.split('{0}').join(text_final);
+                try {
+                    const text_old = (fs.readFileSync(`./${MEMBER_NAMES_CN[chara]}.txt`)).toString();
+                    const hash_old = crypt.createHash('md5'), hash = crypt.createHash('md5');
+                    hash_old.update(text_old);
+                    hash.update(text);
+                    const a = hash_old.digest('hex'), b = hash.digest('hex');
+                    if (a !== b) {
+                        console.log(MEMBER_NAMES_CN[chara], a, "->", b);
+                        throw null;
+                    }
+                } catch (e) {
+                    fs.writeFileSync(`./${MEMBER_NAMES_CN[chara]}.txt`, text);
+                }
             }
-            fs.writeFileSync(`./${MEMBER_NAMES_CN[chara]}.txt`, template.split('{0}').join(text_final));
-            console.log(`card data (${MEMBER_NAMES_CN[chara]}) generation completed.`)
         })
     }
 }, onrej => {
@@ -464,7 +480,7 @@ const card_rotation = async (cards/*{no:... id:... parm_sum_raw:... gepf:...} */
         }
     }
     //potato
-    const time_limits = [190926, 190926, 191115, 191231, 200804, 200804, 200804, 200804, 201125, 201125];
+    const time_limits = [190926, 190926, 191115, 191231, 200804, 200804, 200804, 200804, 201125, 201125, 211118, 211118, 211118, 211118, 211118, 211118, 211118, 211118];
     let round_line = new Array();
     for (let round = 0; ; round++) {
         round_line[round] = new String();
@@ -515,7 +531,21 @@ const card_rotation = async (cards/*{no:... id:... parm_sum_raw:... gepf:...} */
     }
     console.log(round_line_stat[0].join('\n\n\n') + "\n\n\n" + round_line_stat[1].join('\n\n\n'))
 
-    const template = fs.readFileSync(PATH_TEMPLATE_1).toString();
-    fs.writeFileSync(PATH_OUT_1, format(template, final));
-    console.log('card rotation generation completed.')
+    {
+        const template = fs.readFileSync(PATH_TEMPLATE_1).toString();
+        const text = format(template, final);
+        try {
+            const text_old = (fs.readFileSync(PATH_OUT_1)).toString();
+            const hash_old = crypt.createHash('md5'), hash = crypt.createHash('md5');
+            hash_old.update(text_old);
+            hash.update(text);
+            const a = hash_old.digest('hex'), b = hash.digest('hex');
+            if (a !== b) {
+                console.log("出卡循环", a, "->", b);
+                throw null;
+            }
+        } catch (e) {
+            fs.writeFileSync(PATH_OUT_1, text);
+        }
+    }
 }
