@@ -81,13 +81,13 @@ class WaveMissionNames {
         }
         throw `unknown wave type from name ${name}`;
     };
-}// as { regExp_names_by_mission_type: Map<wave_mission_types, RegExp>, parse_name: (name: string) => { mission_type: wave_mission_types, arg_1: number } };
+}
 
 class MasterData extends Database {
     All(SQLString: string): Promise<any[]> {
         return new Promise((res, rej) => {
             this.all(SQLString, (err: Error, rows: any[]) => {
-                if (err) rej(err);
+                if (err) rej(`Masterdata Error: ${err}, on ${SQLString}`);
                 res(rows);
             })
         })
@@ -220,7 +220,7 @@ class Dictionary extends Database {
     All(SQLString: string) {
         return new Promise((res, rej) => {
             this.all(SQLString, (err: Error, rows: any[]) => {
-                if (err) rej(err);
+                if (err) rej(`Dictionary Error: ${err}, on ${SQLString}`);
                 res(rows);
             })
         })
@@ -286,6 +286,29 @@ async function tower_info_by_live_difficulty_id(live_difficulty_id: number) {
         .filter((live_difficulty_id) => live_difficulty_id)
         .indexOf(live_difficulty_id) + 1;
     return { tower_id, floor_no, live_no, target_voltage };
+}
+
+async function coop_live_by_live_difficulty_id(live_difficulty_id: number) {
+    //依赖于live_id和live_difficulty_id的约束
+    const id_str = live_difficulty_id.toString();
+    const sbl_live_id_str = id_str.slice(0, 5);
+    const event_ids = await masterdata.All(`select event_id, display_order from m_coop_live where id = ${sbl_live_id_str}`) as { event_id: number, display_order: number }[];
+
+    let main_difficulty_type = 30;
+    if (id_str[5] === "4" || id_str[6] === "1") {
+        //两周年上级+SBL
+        main_difficulty_type = 35;
+        return { main_difficulty_type, events: event_ids.filter(({ event_id }) => [32020, 32021].indexOf(event_id) !== -1) };
+    } else {
+        //补充被删除的谱面
+        //32005 Snow halation
+        if (sbl_live_id_str === "40011") event_ids.push({ event_id: 32005, display_order: 1 });
+        //32006 Tokimeki Runners Chapter 17 Ver.
+        if (sbl_live_id_str === "42034") event_ids.push({ event_id: 32006, display_order: 3 });
+        //32007 Ketsui no Hikari
+        if (sbl_live_id_str === "42030") event_ids.push({ event_id: 32007, display_order: 3 });
+        return { main_difficulty_type, events: event_ids.filter(({ event_id }) => [32020, 32021].indexOf(event_id) === -1) };
+    }
 }
 
 //FULL replace judge 谱面完全替换规则: 默认live_id是相同的
@@ -369,46 +392,102 @@ async function page_generation(live_ids_3d: number[], live_ids_2d: number[]) {
     // music_id和2D/3D一一对应，不需要
 
     const diffs_3d = await music_difficulties_generation(live_ids_3d), diffs_2d = await music_difficulties_generation(live_ids_2d);
-    // Step 5
 
-    const [各难度信息_2D, 各难度信息_3D] = await Promise.all([diffs_2d, diffs_3d].map(async (diffs) => {
+    const { live_id: live_id_3d, text: base_info_3d, center_count: center_count_3d } = (await live_base_info_gen(live_ids_3d)) || { live_id: null, text: null, center_count: null };
+    const { live_id: live_id_2d, text: base_info_2d, center_count: center_count_2d } = (await live_base_info_gen(live_ids_2d)) || { live_id: null, text: null, center_count: null };
+    let chart_complete_state = true;//不太文明 凑合着用
+    // Step 5
+    const [信息_2D, 信息_3D] = await Promise.all([
+        { main_live_id: live_id_2d, diffs: diffs_2d, base_info: base_info_2d, center_count: center_count_2d },
+        { main_live_id: live_id_3d, diffs: diffs_3d, base_info: base_info_3d, center_count: center_count_3d }
+    ].map(async ({ main_live_id, diffs, base_info, center_count }) => {
         if (!diffs) return null;
-        const 各难度信息 = [];
+        const 各难度信息: string[] = [];
+        const 分类器: string[] = [];
+        const generated_difficulty_ids: number[] = [];
+        //统一生成GimmickData
+        const GimmickData2_by_difficulty_id: Map<number, string> = new Map();
+        diffs.difficulties.forEach(({ difficulty, difficulty_const, descriptions_live, descriptions_note, descriptions_wave, range_note, range_wave, epilog, is_complete }, difficulty_id) => {
+            chart_complete_state = is_complete && chart_complete_state;
+            const { chart_note_count } = epilog;
+            if (chart_note_count) {
+                //有完整谱面
+                GimmickData2_by_difficulty_id.set(difficulty_id, `{{GimmickData2 | MID = ${main_live_id} | ID = ${difficulty_id}\n| ${descriptions_live.join("\n  ")
+                    }\n| ${descriptions_note.join("\n  ")
+                    }\n| ${descriptions_wave.join("\n  ")}\n| ${chart_note_count}\n| ${range_note.concat(range_wave).join("\n  ")}\n}}`);
+            } else {
+                //完全没有谱面
+                GimmickData2_by_difficulty_id.set(difficulty_id, `{{GimmickData2 | MID = ${main_live_id} | ID = ${difficulty_id}\n| ${descriptions_live.join("\n  ")
+                    }\n| ${descriptions_note.join("\n  ")
+                    }\n| ${descriptions_wave.join("\n  ")}\n}}`);
+            }
+        });
 
         const normal_lives = [] as { text: string, sort_value: number }[];
-        const tmp_note_count_for_story_difficulty_compare = { [difficulty_difficulties.beginner]: null, [difficulty_difficulties.intermediate]: null, [difficulty_difficulties.advanced]: null };
-        for (const [difficulty_id, { difficulty, difficulty_const, descriptions_live, descriptions_note, descriptions_wave, epilog }] of diffs.difficulties.entries()) {
+        const normal_selectors = [] as { text: string, sort_value: number }[];
+        const tmp_note_count_for_story_difficulty_compare = { [difficulty_difficulties.beginner]: null as number, [difficulty_difficulties.intermediate]: null as number, [difficulty_difficulties.advanced]: null as number };
+        for (const [difficulty_id, { difficulty, difficulty_const, descriptions_live, descriptions_note, descriptions_wave, range_note, range_wave, epilog }] of diffs.difficulties.entries()) {
             if ([unlock_patterns.permanent, unlock_patterns.eliminated, unlock_patterns.expert_challenge, unlock_patterns.daily, unlock_patterns.from_main_story, unlock_patterns.from_bond_story].indexOf(difficulty.unlock_pattern) === -1) continue;
             //只能有一个1开头的初中上级曲目
             if (difficulty_id.toString()[0] === "1" && difficulty.live_difficulty_type <= 30 && tmp_note_count_for_story_difficulty_compare[difficulty.live_difficulty_type]) continue;
 
             const texts = [] as string[];
-            texts.push(`=== <ASCommonIcon name="icon_attribute_${difficulty.default_attribute}" w=26/>${difficulty_id.toString()[0] === "2" ? "活动" : ""}${{ 10: "初级", 20: "中级", 30: "上级", 35: "上级+", 37: "Challenge" }[difficulty.live_difficulty_type]} ===`);
 
-            const { consumed_lp, recommended_score, recommended_stamina,
+            const { live_difficulty_type, default_attribute, consumed_lp, recommended_score, recommended_stamina,
                 evaluation_c_score, evaluation_b_score, evaluation_a_score, evaluation_s_score,
                 reward_user_exp, reward_base_love_point,
-                live_difficulty_type,
             } = difficulty;
-            const { chart_note_count } = epilog;
-            tmp_note_count_for_story_difficulty_compare[live_difficulty_type] = chart_note_count || "未知";
+            const { chart_note_count, total_success_voltage } = epilog;
             const { note_stamina_reduce, sp_gauge_length, sp_gauge_reducing_point, note_voltage_upper_limit, collabo_voltage_upper_limit, skill_voltage_upper_limit, squad_change_voltage_upper_limit } = difficulty_const;
-            texts.push(`{{NormalLiveData|${consumed_lp}|${recommended_score.toLocaleString()}|${recommended_stamina.toLocaleString()}|${evaluation_c_score.toLocaleString()}|${evaluation_b_score.toLocaleString()}|${evaluation_a_score.toLocaleString()}|${evaluation_s_score.toLocaleString()
-                }|${chart_note_count || "未知"}|${note_stamina_reduce}|${sp_gauge_length}|${sp_gauge_reducing_point}|${note_voltage_upper_limit.toLocaleString()}|${collabo_voltage_upper_limit.toLocaleString()}|${skill_voltage_upper_limit.toLocaleString()}|${squad_change_voltage_upper_limit.toLocaleString()
-                }|${reward_user_exp}|${reward_base_love_point}}}`);
-            texts.push(`{{GimmickData|${descriptions_live.join("")
-                }|${descriptions_note.length ? descriptions_note.join("") : "此Live没有特效节奏图示。"
-                }|${descriptions_wave.length ? descriptions_wave.join("") : "此Live没有Appeal Chance。"}}}`);
+            //用于Story Live指定CDT（谱面类型）
+            if (chart_note_count) tmp_note_count_for_story_difficulty_compare[live_difficulty_type] = chart_note_count;
+            const parms_text = Object.entries({
+                MID: main_live_id,
+                ID: difficulty_id, DT: live_difficulty_type, ATTR: default_attribute, SLP: recommended_score, SST: recommended_stamina,
+                VC: evaluation_c_score, VB: evaluation_b_score, VA: evaluation_a_score, VS: evaluation_s_score,
+                DMG: note_stamina_reduce,
+                NN: chart_note_count, ACVO: total_success_voltage,
+                LP: consumed_lp !== { 10: 10, 20: 12, 30: 15, 35: 20, 37: 20 }[live_difficulty_type] && consumed_lp,
+                EXP: reward_user_exp !== { 10: 8, 20: 13, 30: 21, 35: 34, 37: 34 }[live_difficulty_type] && reward_user_exp,
+                BOND: reward_base_love_point !== { 10: 12, 20: 16, 30: 24, 35: 36, 37: 36 }[live_difficulty_type] && reward_base_love_point,
+                BONDC: center_count !== 1 && center_count,
+                MSP: sp_gauge_length !== { 10: 3600, 20: 4800, 30: 6000, 35: 7200, 37: 8400 }[live_difficulty_type] && sp_gauge_length,
+                LSP: sp_gauge_reducing_point !== { 10: 50, 20: 75, 30: 100, 35: 100, 37: 100 }[live_difficulty_type] && sp_gauge_reducing_point,
+                CAP1: note_voltage_upper_limit !== { 10: 50000, 20: 50000, 30: 50000, 35: 250000, 37: 300000 }[live_difficulty_type] && note_voltage_upper_limit,
+                CAP2: collabo_voltage_upper_limit !== { 10: 250000, 20: 250000, 30: 250000, 35: 500000, 37: 750000 }[live_difficulty_type] && collabo_voltage_upper_limit,
+                CAP3: skill_voltage_upper_limit !== { 10: 50000, 20: 50000, 30: 50000, 35: 100000, 37: 150000 }[live_difficulty_type] && skill_voltage_upper_limit,
+                CAP4: squad_change_voltage_upper_limit !== 30000 && squad_change_voltage_upper_limit,
+            }).filter(([k, v]) => v).map(([k, v]) => `${k}=${v}`).join('|');
+            texts.push(`{{NormalLiveData2|${parms_text}}}`);
+            texts.push(GimmickData2_by_difficulty_id.get(difficulty_id));
 
-            normal_lives.push({ text: texts.join("\n\n"), sort_value: difficulty.live_difficulty_type + difficulty_id.toString()[0] === "2" ? 100 : 0 });
+            const sort_value = difficulty.live_difficulty_type + (difficulty_id.toString()[0] === "2" ? 100 : 0);
+            normal_lives.push({ text: texts.join("\n\n"), sort_value });
+            normal_selectors.push({ text: `{{NormalLiveSelector|${parms_text}}}`, sort_value });
+            generated_difficulty_ids.push(difficulty_id);
         }
         if (normal_lives.length) {
             normal_lives.sort((a, b) => a.sort_value - b.sort_value);
-            normal_lives.unshift({ text: "== 通常Live ==", sort_value: 0 });
+            normal_selectors.sort((a, b) => a.sort_value - b.sort_value);
+            //normal_lives.unshift({ text: "== 通常Live ==", sort_value: 0 });
             各难度信息.push(normal_lives.map(({ text }) => text).join("\n\n"));
+            const f1 = normal_selectors.filter(({ sort_value }) => sort_value < 100), f2 = normal_selectors.filter(({ sort_value }) => sort_value >= 100);
+            if (f1.length) {
+                分类器.push(`<div class=difficulty-selector-header data-permanent></div>`);
+                分类器.push('<div class=difficulty-selector-content>');
+                分类器.push(f1.map(({ text }) => text).join("\n"));
+                分类器.push('</div>');
+            }
+            if (f2.length) {
+                分类器.push(`<div class=difficulty-selector-header data-event></div>`);
+                分类器.push('<div class=difficulty-selector-content>');
+                分类器.push(f2.map(({ text }) => text).join("\n"));
+                分类器.push('</div>');
+            }
         }
 
         const story_lives = [] as { text: string, sort_value: number }[];
+        const story_selectors = [] as { text: string, sort_value: number }[];
         for (const [difficulty_id, { difficulty, difficulty_const, descriptions_live, descriptions_note, descriptions_wave, epilog }] of diffs.difficulties.entries()) {
             if (difficulty.unlock_pattern !== unlock_patterns.main_story) continue;
             const story_main_info = await story_main_info_by_live_difficulty_id(difficulty_id);
@@ -416,35 +495,61 @@ async function page_generation(live_ids_3d: number[], live_ids_2d: number[]) {
 
             const texts = [] as string[];
             const { is_normal, is_hard, chapter_id, number } = story_main_info;
-            texts.push(`=== <ASCommonIcon name="icon_attribute_${difficulty.default_attribute}" w=26/>${chapter_id}章${number}话${is_normal || is_hard ? ` ${is_normal ? "NORMAL" : "HARD"}` : ""} ===`);
 
-            const { consumed_lp, recommended_score, recommended_stamina,
+            const { live_difficulty_type, default_attribute, consumed_lp, recommended_score, recommended_stamina,
                 evaluation_c_score, evaluation_b_score, evaluation_a_score, evaluation_s_score,
                 reward_user_exp, reward_base_love_point,
-                live_difficulty_type,
             } = difficulty;
-            const { chart_note_count } = epilog;
-            const tmp_story_chart_difficulty = Object.entries(tmp_note_count_for_story_difficulty_compare).reduce((prev, [k, v]) => {
-                if (v === chart_note_count) return { 10: "初级", 20: "中级", 30: "上级" }[k];
+            const { chart_note_count, total_success_voltage } = epilog;
+            // Story Live 谱面类型(初级 中级 上级)
+            const CDT = Object.entries(tmp_note_count_for_story_difficulty_compare).reduce((prev, [k, v]) => {
+                if (v === chart_note_count) return k;
                 else return prev;
-            }, "未知")
+            }, null as any);
             const { note_stamina_reduce, sp_gauge_length, sp_gauge_reducing_point, note_voltage_upper_limit, collabo_voltage_upper_limit, skill_voltage_upper_limit, squad_change_voltage_upper_limit } = difficulty_const;
-            texts.push(`{{StoryLiveData|${consumed_lp}|${recommended_score.toLocaleString()}|${recommended_stamina.toLocaleString()}|${evaluation_c_score.toLocaleString()}|${evaluation_b_score.toLocaleString()}|${evaluation_a_score.toLocaleString()}|${evaluation_s_score.toLocaleString()
-                }|${chart_note_count || "未知"}|${tmp_story_chart_difficulty}|${note_stamina_reduce}|${sp_gauge_length}|${sp_gauge_reducing_point}|${note_voltage_upper_limit.toLocaleString()}|${collabo_voltage_upper_limit.toLocaleString()}|${skill_voltage_upper_limit.toLocaleString()}|${squad_change_voltage_upper_limit.toLocaleString()
-                }|${reward_user_exp}|${reward_base_love_point}|${{ 10: 180, 20: 300, 30: 460, 35: 700, 37: 700 }[live_difficulty_type]}}}`);
-            texts.push(`{{GimmickData|${descriptions_live.join("")
-                }|${descriptions_note.length ? descriptions_note.join("") : "此Live没有特效节奏图示。"
-                }|${descriptions_wave.length ? descriptions_wave.join("") : "此Live没有Appeal Chance。"}}}`);
 
-            story_lives.push({ text: texts.join("\n\n"), sort_value: chapter_id * 1000 + number * 10 + (is_hard ? 1 : 0) });
+            const parms_text = Object.entries({
+                MID: main_live_id,
+                PART: story_main_info.part_id, CHAPTER: story_main_info.chapter_id, STAGE: story_main_info.stage_no, EPISODE: story_main_info.number,
+                ESUB: story_main_info.number_ab.match(/(a|b)$/) && Array.from(story_main_info.number_ab).pop(),
+                TYPE: is_normal && "NORMAL" || is_hard && "HARD" || null,
+                CDT,
+                ID: difficulty_id, DT: live_difficulty_type, ATTR: default_attribute, SLP: recommended_score, SST: recommended_stamina,
+                LP: consumed_lp,
+                VC: evaluation_c_score, VB: evaluation_b_score, VA: evaluation_a_score, VS: evaluation_s_score,
+                DMG: note_stamina_reduce,
+                NN: chart_note_count, ACVO: total_success_voltage,
+                EXP: reward_user_exp !== { 9: 7, 10: 8, 12: 10, 13: 10, 15: 12, 16: 13 }[consumed_lp] && reward_user_exp,
+                BOND: reward_base_love_point !== consumed_lp && reward_base_love_point,
+                BONDC: center_count !== 1 && center_count,
+                MSP: (!(is_normal || is_hard) || is_normal && sp_gauge_length !== 4800 || is_hard && sp_gauge_length !== 6000) && sp_gauge_length,
+                LSP: (!(is_normal || is_hard) || sp_gauge_reducing_point !== 75) && sp_gauge_reducing_point,
+                CAP1: note_voltage_upper_limit !== { 10: 50000, 20: 50000, 30: 50000, 35: 250000, 37: 300000 }[live_difficulty_type] && note_voltage_upper_limit,
+                CAP2: collabo_voltage_upper_limit !== { 10: 250000, 20: 250000, 30: 250000, 35: 500000, 37: 750000 }[live_difficulty_type] && collabo_voltage_upper_limit,
+                CAP3: skill_voltage_upper_limit !== { 10: 50000, 20: 50000, 30: 50000, 35: 100000, 37: 150000 }[live_difficulty_type] && skill_voltage_upper_limit,
+                CAP4: squad_change_voltage_upper_limit !== 30000 && squad_change_voltage_upper_limit,
+            }).filter(([k, v]) => v).map(([k, v]) => `${k}=${v}`).join('|');
+            texts.push(`{{StoryLiveData2|${parms_text}}}`);
+            texts.push(GimmickData2_by_difficulty_id.get(difficulty_id));
+
+            const sort_value = chapter_id * 1000 + number * 10 + (is_hard ? 1 : 0);
+            story_lives.push({ text: texts.join("\n\n"), sort_value });
+            story_selectors.push({ text: `{{StoryLiveSelector|${parms_text}}}`, sort_value });
+            generated_difficulty_ids.push(difficulty_id);
         }
         if (story_lives.length) {
             story_lives.sort((a, b) => a.sort_value - b.sort_value);
-            story_lives.unshift({ text: "== 剧情Live ==", sort_value: 0 });
+            story_selectors.sort((a, b) => a.sort_value - b.sort_value);
+            //story_lives.unshift({ text: "== 剧情Live ==", sort_value: 0 });
             各难度信息.push(story_lives.map(({ text }) => text).join("\n\n"));
+            分类器.push(`<div class=difficulty-selector-header data-story-main></div>`);
+            分类器.push('<div class=difficulty-selector-content>');
+            分类器.push(story_selectors.map(({ text }) => text).join("\n"));
+            分类器.push('</div>');
         }
 
         const dlp_lives = [] as { text: string, sort_value: number }[];
+        const dlp_selectors = [] as { text: string, sort_value: number }[];
         for (const [difficulty_id, { difficulty, difficulty_const, descriptions_live, descriptions_note, descriptions_wave, epilog }] of diffs.difficulties.entries()) {
             if (difficulty.unlock_pattern !== unlock_patterns.DLP) continue;
             //未被使用的DLP Live
@@ -452,42 +557,146 @@ async function page_generation(live_ids_3d: number[], live_ids_2d: number[]) {
             if (!tower_info) continue;
 
             const texts = [] as string[];
-            const { tower_id, target_voltage, live_no } = tower_info
-            texts.push(`=== <ASCommonIcon name="icon_attribute_${difficulty.default_attribute}" w=26/>${tower_id % 100}塔${live_no}层 ===`);
+            const { tower_id, target_voltage, floor_no, live_no } = tower_info;
 
-            const { consumed_lp, recommended_score, recommended_stamina,
+            const { live_difficulty_type, default_attribute, consumed_lp, recommended_score, recommended_stamina,
+                evaluation_c_score, evaluation_b_score, evaluation_a_score, evaluation_s_score,
+                reward_user_exp, reward_base_love_point,
+            } = difficulty;
+            const { chart_note_count, total_success_voltage } = epilog;
+            const { note_stamina_reduce, sp_gauge_length, sp_gauge_reducing_point, note_voltage_upper_limit, collabo_voltage_upper_limit, skill_voltage_upper_limit, squad_change_voltage_upper_limit } = difficulty_const;
+
+            const parms_text = Object.entries({
+                MID: main_live_id,
+                TOWER: tower_id, FLOOR: floor_no, STAGE: live_no,
+                ID: difficulty_id, DT: live_difficulty_type, ATTR: default_attribute, SLP: recommended_score, SST: recommended_stamina,
+                VP: target_voltage,
+                DMG: note_stamina_reduce,
+                NN: chart_note_count, ACVO: total_success_voltage,
+                LP: consumed_lp !== 0 && consumed_lp,
+                EXP: reward_user_exp !== 0 && reward_user_exp,
+                MSP: sp_gauge_length !== { 10: 3600, 20: 4800, 30: 6000, 35: 7200, 37: 8400 }[live_difficulty_type] && sp_gauge_length,
+                LSP: sp_gauge_reducing_point !== { 10: 50, 20: 75, 30: 100, 35: 100, 37: 100 }[live_difficulty_type] && sp_gauge_reducing_point,
+                CAP1: note_voltage_upper_limit !== { 10: 50000, 20: 50000, 30: 50000, 35: 250000, 37: 300000 }[live_difficulty_type] && note_voltage_upper_limit,
+                CAP2: collabo_voltage_upper_limit !== { 10: 250000, 20: 250000, 30: 250000, 35: 500000, 37: 750000 }[live_difficulty_type] && collabo_voltage_upper_limit,
+                CAP3: skill_voltage_upper_limit !== { 10: 50000, 20: 50000, 30: 50000, 35: 100000, 37: 150000 }[live_difficulty_type] && skill_voltage_upper_limit,
+                CAP4: squad_change_voltage_upper_limit !== 30000 && squad_change_voltage_upper_limit,
+            }).filter(([k, v]) => v).map(([k, v]) => `${k}=${v}`).join('|');
+            texts.push(`{{DLPLiveData2|${parms_text}}}`);
+            texts.push(GimmickData2_by_difficulty_id.get(difficulty_id));
+
+            const sort_value = tower_id * 1000 + live_no;
+            dlp_lives.push({ text: texts.join("\n\n"), sort_value });
+            dlp_selectors.push({ text: `{{DLPLiveSelector|${parms_text}}}`, sort_value });
+            generated_difficulty_ids.push(difficulty_id);
+        }
+        if (dlp_lives.length) {
+            dlp_lives.sort((a, b) => a.sort_value - b.sort_value);
+            dlp_selectors.sort((a, b) => a.sort_value - b.sort_value);
+            //dlp_lives.unshift({ text: "== DLP Live ==", sort_value: 0 });
+            各难度信息.push(dlp_lives.map(({ text }) => text).join("\n\n"));
+            分类器.push(`<div class=difficulty-selector-header data-dlp></div>`);
+            分类器.push('<div class=difficulty-selector-content>');
+            分类器.push(dlp_selectors.map(({ text }) => text).join("\n"));
+            分类器.push('</div>');
+        }
+
+        const sbl_lives = [] as { text: string, sort_value: number }[];
+        const sbl_selectors = [] as { text: string, sort_value: number }[];
+        for (const [difficulty_id, { difficulty, difficulty_const, descriptions_live, descriptions_note, descriptions_wave, epilog }] of diffs.difficulties.entries()) {
+            if (difficulty.unlock_pattern !== unlock_patterns.SBL) continue;
+
+            const sbl_info = await coop_live_by_live_difficulty_id(difficulty_id);
+            if (!sbl_info) continue;
+
+            const texts = [] as string[];
+            const { main_difficulty_type } = sbl_info;
+
+            const { default_attribute, consumed_lp, recommended_score, recommended_stamina,
                 evaluation_c_score, evaluation_b_score, evaluation_a_score, evaluation_s_score,
                 reward_user_exp, reward_base_love_point,
                 live_difficulty_type,
             } = difficulty;
-            const { chart_note_count } = epilog;
+            const { chart_note_count, total_success_voltage } = epilog;
             const { note_stamina_reduce, sp_gauge_length, sp_gauge_reducing_point, note_voltage_upper_limit, collabo_voltage_upper_limit, skill_voltage_upper_limit, squad_change_voltage_upper_limit } = difficulty_const;
-            texts.push(`{{DLPLiveData|${recommended_score.toLocaleString()}|${recommended_stamina.toLocaleString()}|${target_voltage.toLocaleString()
-                }|${chart_note_count || "未知"}|${{ 10: "初级", 20: "中级", 30: "上级", 35: "上级+", 37: "Challenge" }[difficulty.live_difficulty_type]}|${note_stamina_reduce}|${sp_gauge_length}|${sp_gauge_reducing_point}|${note_voltage_upper_limit.toLocaleString()}|${collabo_voltage_upper_limit.toLocaleString()}|${skill_voltage_upper_limit.toLocaleString()}|${squad_change_voltage_upper_limit.toLocaleString()
-                }}}`);
-            texts.push(`{{GimmickData|${descriptions_live.join("")
-                }|${descriptions_note.length ? descriptions_note.join("") : "此Live没有特效节奏图示。"
-                }|${descriptions_wave.length ? descriptions_wave.join("") : "此Live没有Appeal Chance。"}}}`);
 
-            dlp_lives.push({ text: texts.join("\n\n"), sort_value: tower_id * 1000 + live_no });
+            const parms_text = Object.entries({
+                MID: main_live_id,
+                MDT: main_difficulty_type,
+                ID: difficulty_id, DT: live_difficulty_type, ATTR: default_attribute, SLP: recommended_score, SST: recommended_stamina,
+                VC: evaluation_c_score, VB: evaluation_b_score, VA: evaluation_a_score, VS: evaluation_s_score,
+                DMG: note_stamina_reduce,
+                NN: chart_note_count, ACVO: total_success_voltage,
+                EXP: reward_user_exp !== { 10: 8, 20: 13, 30: 21, 35: 34, 37: 34 }[live_difficulty_type] && reward_user_exp,
+                BOND: reward_base_love_point !== { 10: 12, 20: 16, 30: 24, 35: 36, 37: 36 }[live_difficulty_type] && reward_base_love_point,
+                BONDC: center_count !== 1 && center_count,
+                MSP: sp_gauge_length !== { 10: 3600, 20: 4800, 30: 6000, 35: 7200, 37: 8400 }[main_difficulty_type] && sp_gauge_length,
+                LSP: sp_gauge_reducing_point !== { 10: 50, 20: 75, 30: 100, 35: 100, 37: 100 }[main_difficulty_type] && sp_gauge_reducing_point,
+                CAP1: note_voltage_upper_limit !== { 10: 50000, 20: 50000, 30: 50000, 35: 250000, 37: 300000 }[main_difficulty_type] && note_voltage_upper_limit,
+                CAP2: collabo_voltage_upper_limit !== { 10: 250000, 20: 250000, 30: 250000, 35: 500000, 37: 750000 }[main_difficulty_type] && collabo_voltage_upper_limit,
+                CAP3: skill_voltage_upper_limit !== { 10: 50000, 20: 50000, 30: 50000, 35: 100000, 37: 150000 }[main_difficulty_type] && skill_voltage_upper_limit,
+                CAP4: squad_change_voltage_upper_limit !== 30000 && squad_change_voltage_upper_limit,
+            }).filter(([k, v]) => v).map(([k, v]) => `${k}=${v}`).join('|');
+            texts.push(`{{SBLLiveData2|${parms_text}}}`);
+            texts.push(GimmickData2_by_difficulty_id.get(difficulty_id));
+
+            const sort_value = difficulty_id % 1000 + 1000 * main_difficulty_type;
+            sbl_lives.push({ text: texts.join("\n\n"), sort_value });
+            sbl_selectors.push({ text: `{{SBLLiveSelector|${parms_text}}}`, sort_value });
+            generated_difficulty_ids.push(difficulty_id);
         }
-        if (dlp_lives.length) {
-            dlp_lives.sort((a, b) => a.sort_value - b.sort_value);
-            dlp_lives.unshift({ text: "== DLP Live ==", sort_value: 0 });
-            各难度信息.push(dlp_lives.map(({ text }) => text).join("\n\n"));
+        if (sbl_lives.length) {
+            sbl_lives.sort((a, b) => a.sort_value - b.sort_value);
+            sbl_selectors.sort((a, b) => a.sort_value - b.sort_value);
+            //sbl_lives.unshift({ text: "== SBL Live ==", sort_value: 0 });
+            各难度信息.push(sbl_lives.map(({ text }) => text).join("\n\n"));
+            分类器.push(`<div class=difficulty-selector-header data-sbl></div>`);
+            分类器.push('<div class=difficulty-selector-content>');
+            分类器.push(sbl_selectors.map(({ text }) => text).join("\n"));
+            分类器.push('</div>');
         }
-        return 各难度信息;
+
+        return { generated_difficulty_ids, base_info_text: base_info, selector_text: 分类器.join("\n"), chart_text: 各难度信息.join("\n\n") };
     }));
 
 
     if (diffs_3d && diffs_2d) {
+        const selector_frames = [] as string[];
+        selector_frames.push(`<div class=difficulty-selector-frame>
+<div class=difficulty-selector-header data-2d3d></div>
+<div class=difficulty-selector-content>
+<div class=chart-digest data-bsd-activate=${live_id_2d} data-bsd-activated=true data-bsd-action="${live_id_2d}+/${live_id_3d}-">2D Version</div>
+<div class=chart-digest data-bsd-activate=${live_id_3d} data-bsd-activated=false data-bsd-action="${live_id_3d}+/${live_id_2d}-">3D Version</div>
+</div>
+</div>`);
+        selector_frames.push(`<div class=difficulty-selector-frame data-bsd-condition=${live_id_2d}>
+${信息_2D.selector_text}
+</div>`);
+        selector_frames.push(`<div class=difficulty-selector-frame data-bsd-condition=${live_id_3d} data-bsd-activated=true>
+${信息_3D.selector_text}
+</div>`);
         return [
-            [`= 2D 版歌曲基本信息 =`, diffs_2d.base_info, `= 2D 版各难度信息 =`].concat(各难度信息_2D).join("\n\n"),
-            [`= 3D 版歌曲基本信息 =`, diffs_3d.base_info, `= 3D 版各难度信息 =`].concat(各难度信息_3D).join("\n\n"),
+            '{{CSSChartText}}',
+            `<div id=difficulty-selector>\n${selector_frames.join('\n')}\n</div>`,
+            `<div data-bsd-condition="${live_id_2d}${信息_2D.generated_difficulty_ids.length ? `&!(${信息_2D.generated_difficulty_ids.join('|')})` : ''}">\n${信息_2D.base_info_text}\n</div>`,
+            (信息_2D).chart_text,
+            `<div data-bsd-condition="${live_id_3d}${信息_3D.generated_difficulty_ids.length ? `&!(${信息_3D.generated_difficulty_ids.join('|')})` : ''}">\n${信息_3D.base_info_text}\n</div>`,
+            (信息_3D).chart_text,
+            `[[分类:歌曲]]${chart_complete_state ? "" : "\n[[分类:数据不完整的歌曲]]"}`,
         ].join("\n\n");
-        //ON PROGRESS
     } else if (diffs_3d || diffs_2d) {
-        return [`= 歌曲基本信息 =`, diffs_2d ? diffs_2d.base_info : diffs_3d.base_info, `= 各难度信息 =`].concat(各难度信息_2D || 各难度信息_3D).join("\n\n");
+        const selector_frames = [] as string[];
+        const 信息 = 信息_2D || 信息_3D;
+        selector_frames.push(`<div class=difficulty-selector-frame data-bsd-condition=${live_id_2d || live_id_3d} data-bsd-activated=true>
+${信息.selector_text}
+</div>`);
+        return [
+            '{{CSSChartText}}',
+            `<div id=difficulty-selector>\n${selector_frames.join('\n')}\n</div>`,
+            `<div data-bsd-condition="${live_id_2d || live_id_3d}${信息.generated_difficulty_ids.length ? `&!(${信息.generated_difficulty_ids.join('|')})` : ''}">\n${信息.base_info_text}\n</div>`,
+            (信息).chart_text,
+            `[[分类:歌曲]]${chart_complete_state ? "" : "\n[[分类:数据不完整的歌曲]]"}`,
+        ].join("\n\n");
     }
 }
 
@@ -498,7 +707,6 @@ async function music_difficulties_generation(live_ids: number[]) {
     if (!main_live_id) return null;
 
     const music_id = main_live_id % 10000;
-    const text_base_info = await live_base_info_gen(main_live_id);
     const difficulty_id_config = await masterdata.fetch_live_difficulty_id_config_by_music_id(music_id);
     const live_difficulties = [] as difficulty_const_info[];
     for (const difficulty_id of difficulty_id_config.keys()) {
@@ -508,6 +716,7 @@ async function music_difficulties_generation(live_ids: number[]) {
     const result_map = new Map() as Map<number, {
         difficulty: m_live_difficulty_t, difficulty_const: m_live_difficulty_const_t,
         descriptions_live: string[], descriptions_note: string[], descriptions_wave: string[],
+        range_note: string[], range_wave: string[],
         epilog: {
             chart_note_count: number;
             natural_damage_rate_100: number;
@@ -519,7 +728,8 @@ async function music_difficulties_generation(live_ids: number[]) {
             total_success_voltage_rate_100: any;
             total_failure_damage: number;
             total_failure_damage_rate_100: any;
-        }
+        },
+        is_complete: boolean;
     }>;
 
     for (const const_info of live_difficulties.values()) {
@@ -549,11 +759,11 @@ async function music_difficulties_generation(live_ids: number[]) {
             || chart_raw.live_stage as chart_t
             || chart_raw as chart_t)
             || null;
-        if (!chart && live_difficulty_id.toString()[0] !== "4") console.log(`WARNING ${live_difficulty_id} available chart not found`);
+        if (!chart) console.log(`[CHART WARNING] ${live_difficulty_id} available chart not found`);
 
         result_map.set(live_difficulty_id, await difficulty_gimmick_generation(const_info, chart));
     }
-    return { base_info: text_base_info, difficulties: result_map };
+    return { difficulties: result_map };
 }
 
 // Step 4
@@ -637,13 +847,9 @@ async function difficulty_gimmick_generation(const_info: difficulty_const_info, 
         });
     }
 
-    const descriptions_live = await Promise.all(gimmick_lives.map(async ({ skill_master_id, name, description }): Promise<string> => {
-        if (skill_master_id === 50000001)
-            return `{{GimmickLive|【Live特征】无特效|【攻略提示】{{ja|${description.slice(7)}}}}}`;
+    const descriptions_live = await Promise.all(gimmick_lives.map(async ({ skill_master_id, name, description }, index): Promise<string> => {
         const { skill_effect_1, skill_effect_2, skill_target_1, skill_target_2 } = await masterdata.fetch_skill(skill_master_id);
-        const SE_2 = skill_target_2 ? `|${skill_target_2.id}|${skill_effect_2.effect_type}|${skill_effect_2.calc_type}|${skill_effect_2.effect_value}` : "";
-        const SE = `{{GimmickLiveDescription|${skill_target_1.id}|${skill_effect_1.effect_type}|${skill_effect_1.calc_type}|${skill_effect_1.effect_value}${SE_2}}}`;
-        return `{{GimmickLive|【Live特征】${SE}|【攻略提示】{{ja|${description.slice(7)}}}}}`;
+        return `{{GimmickLive2|LID=${index + 1}|TARG=${skill_target_1.id}|ET=${skill_master_id === 50000001 ? 1 : skill_effect_1.effect_type}|EV=${skill_effect_1.effect_value}|CALC=${skill_effect_1.calc_type}|HINT=【攻略提示】{{ja|${description.slice(7)}}}}}`;
     }));
 
     const epilog = {
@@ -659,31 +865,26 @@ async function difficulty_gimmick_generation(const_info: difficulty_const_info, 
         total_failure_damage_rate_100: undefined,
     };
 
-    const descriptions_note_p: Promise<string>[] = [];
+    const parms_note_p: Promise<string>[] = [];
     for (const [gimmick_id, { note_gimmick_type, note_gimmick_icon_type, skill_master_id, note_ids }] of chart_notes_by_gimmick_id.entries()) {
-        descriptions_note_p.push((async () => {
+        const parms = (async () => {
             const [, name] = (await dictionary_ja_k.get(`k.live_detail_notes_name_${gimmick_id}`)).match(/^<img .+\/>(.+)$/);
             const { skill_effect_1, skill_effect_2, skill_target_1, skill_target_2 } = await masterdata.fetch_skill(skill_master_id).catch((e) => {
                 console.log(difficulty.live_difficulty_id, gimmick_notes, chart.note_gimmicks, chart_notes_by_gimmick_id, skill_master_id, e);
                 throw "";
             })
             // const SE_2 = skill_target_2 ? `|${skill_target_2.id}|${skill_effect_2.effect_type}|${skill_effect_2.effect_value}|${skill_effect_2.calc_type}|${skill_effect_2.finish_type}|${skill_effect_2.finish_value}` : "";
-            const SE = `{{GimmickNoteDescription|${note_gimmick_type}|${skill_target_1.id}|${skill_effect_1.effect_type}|${skill_effect_1.effect_value}|${skill_effect_1.calc_type}|${skill_effect_1.finish_type}|${skill_effect_1.finish_value}}}`;
-            const note_gimmick_icon_type_app = ((icon) => {
-                if (icon < 14) icon += 1000;
-                else if (icon === 25) icon = 1014;
-                else if (icon === 53) return 2027;
-                else if (icon === 52) return 2026;
-                else icon += 1987; return icon;
-            })(note_gimmick_icon_type);
             //<epilog>
             if ([52, 154].indexOf(skill_effect_1.effect_type) !== -1)
                 epilog.total_special_damage += skill_effect_1.effect_value;
             //</epilog>
-            return `{{GimmickNote|${note_gimmick_icon_type_app}|{{ja|${name}}}|${SE}|${note_ids.join("|")}}}`;
-        })());
+            const parms = `NAME={{ja|${name}}}|NT=${note_gimmick_type}|TARG=${skill_target_1.id}|ET=${skill_master_id === 50000001 ? 1 : skill_effect_1.effect_type}|EV=${skill_effect_1.effect_value}|CALC=${skill_effect_1.calc_type}|FT=${skill_effect_1.finish_type}|FV=${skill_effect_1.finish_value}|${note_ids.join("|")}`;
+            return parms;
+        })();
+        parms_note_p.push(parms);
     }
-    const descriptions_note = await Promise.all(descriptions_note_p);
+    const descriptions_note = (await Promise.all(parms_note_p)).map((s, i) => `{{GimmickNote2|LID=${i + 1}|${s}}}`);
+    const range_note = (await Promise.all(parms_note_p)).map((s, i) => `{{GimmickNoteRange|LID=${i + 1}|${s}}}`);
 
     epilog.natural_damage_rate_100 = ((suggested_stamina, natural_damage, total_notes, sugg_rate = 1) => {
         const base = Math.ceil(suggested_stamina / total_notes * sugg_rate);
@@ -693,14 +894,14 @@ async function difficulty_gimmick_generation(const_info: difficulty_const_info, 
 
     //epilog success_voltage_rate and failure_damage_rate
     //const success_voltages = [] as number[], failure_damages = [] as number[];
-    const descriptions_wave = await Promise.all(gimmick_waves.map(async ({ wave_id, state, skill_id }) => {
+    const parms_wave = await Promise.all(gimmick_waves.map(async ({ wave_id, state, skill_id }, index) => {
         // TODO: PARTIALLY chart replace
         const { skill_effect_1, skill_effect_2, skill_target_1, skill_target_2 } = await masterdata.fetch_skill(skill_id);
         const { mission_type, target_1, start_at_note, end_at_note, success_voltage, failure_damage } = chart_waves_by_wave_id.get(wave_id);
         // TODO: calculate skill-ac pass rate
-        const MN = `{{WaveMissionDetail|${mission_type}|${target_1.toLocaleString()}}}`;
+        const MN = start_at_note ? `MT=${mission_type}|ARG=${target_1}|BEG=${start_at_note}|END=${end_at_note}|VO=${success_voltage}|DMG=${failure_damage}` : `MT=${mission_type}|ARG=${target_1}`;
         // const SE_2 = ``;
-        const SE = `{{GimmickWaveDescription|${state}|${skill_target_1.id}|${skill_effect_1.effect_type}|${skill_effect_1.effect_value}|${skill_effect_1.calc_type}|${skill_effect_1.finish_type}|${skill_effect_1.finish_value}}}`;
+        const SE = `WS=${state}|TARG=${skill_target_1.id}|ET=${skill_id === 50000001 ? 1 : skill_effect_1.effect_type}|EV=${skill_effect_1.effect_value}|CALC=${skill_effect_1.calc_type}|FT=${skill_effect_1.finish_type}|FV=${skill_effect_1.finish_value}`;
         //<epilog>
         if ([52, 154].indexOf(skill_effect_1.effect_type) !== -1)
             epilog.total_special_damage += skill_effect_1.effect_value;
@@ -716,23 +917,28 @@ async function difficulty_gimmick_generation(const_info: difficulty_const_info, 
             //failure_damages.push(failure_damage);
         }
         //</epilog>
-        return start_at_note
-            ? `{{GimmickWave|${MN}|${SE}|${start_at_note}|${end_at_note}|${success_voltage.toLocaleString()}|${failure_damage.toLocaleString()}}}`
-            : `{{GimmickWave|${MN}|${SE}}}`;
+        return `LID=${index + 1}|${SE}|${MN}`;
+
     }));
+    const descriptions_wave = parms_wave.map((s) => `{{GimmickWave2|${s}}}`);
+    const range_wave = parms_wave.map((s) => `{{GimmickWaveRange|${s}}}`);
 
     //epilog success_voltage_rate and failure_damage_rate
     //放弃
-    return { difficulty, difficulty_const, descriptions_live, descriptions_note, descriptions_wave, epilog };
+    return { difficulty, difficulty_const, descriptions_live, descriptions_note, descriptions_wave, range_note, range_wave, epilog, is_complete: !!chart_note_count };
 }
 
 async function main() {
-    
+
     try { await fsPromises.stat(DATA_CACHE) } catch (e) { await fsPromises.mkdir(DATA_CACHE); }
     try { await fsPromises.stat("./audio_cache/") } catch (e) { await fsPromises.mkdir("./audio_cache/"); }
-    
+
     const page_map_live = await grouping_2d_3d();
 
+    //const text = await page_generation(...page_map_live.get("Hop? Stop? Nonstop!"));
+    //console.log(text);
+
+    
     page_map_live.forEach(async (l, n) => {
         const text = await page_generation(...page_map_live.get(n));
         if (!text) return;
@@ -752,19 +958,46 @@ async function main() {
             await fsPromises.writeFile(`./pages/${file_n}.txt`, text);
         }
     });
-
+    
+    
+    /*
+    for (const [n, l] of page_map_live.entries()) {
+        const text = await page_generation(...page_map_live.get(n));
+        if (!text) return;
+        const file_n = n.split('\\').join('%5C').split('/').join('%2F').split(':').join('%3A').split('*').join('%2A').split('?').join('%3F').split('"').join('%22').split('<').join('%3C').split('>').join('%3E').split('|').join('%7C');
+        try {
+            const text_old = (await fsPromises.readFile(`./pages/${file_n}.txt`)).toString();
+            const hash_old = crypt.createHash('md5'), hash = crypt.createHash('md5');
+            hash_old.update(text_old);
+            hash.update(text);
+            const a = hash_old.digest('hex'), b = hash.digest('hex');
+            if (a !== b) {
+                console.log(n, a, "->", b);
+                throw null;
+            }
+        } catch (e) {
+            try { await fsPromises.stat(`./pages/`) } catch (e) { await fsPromises.mkdir(`./pages/`); }
+            await fsPromises.writeFile(`./pages/${file_n}.txt`, text);
+        }
+    }
+    */
 }
 main();
 
 // in Step 3
-const live_base_info_gen = async (live_id: number) => {
+const live_base_info_gen = async (live_ids: number[]) => {
+    //主LiveID: 1、4、5开头的三种live_id中，数值最小的一个
+    const live_id = live_ids[1] || live_ids[4] || live_ids[5];
+    if (!live_id) return null;
     const { name, pronunciation, member_group, member_unit, original_deck_name, copyright, source, jacket, is_2d_live, music_id, live_member_mapping_id } = await masterdata.fetch_live(live_id);
-    const duration_sec = await get_music_duration(music_id) as number, duration_sec_fixed2 = duration_sec ? Math.floor(duration_sec * 100) / 100 : null;
+    const duration_sec = await get_music_duration(music_id) as number, duration_sec_fixed2 = duration_sec ? duration_sec.toFixed(2) : null;
     const member_mapping_by_position = await masterdata.fetch_member_mapping(live_member_mapping_id);
+    let center_count = 0;
     const member_mapping_texts = [12, 10, 8, 6, 4, 2, 1, 3, 5, 7, 9, 11].map((position) => {
         if (!member_mapping_by_position.get(position))
             return { line0_cell: null, line1_cell: null, line2_cell: null }; //position fullfilled
         const { is_center, member_master_id, thumbnail, card_master_id } = member_mapping_by_position.get(position);
+        if (is_center) center_count += 1;
         /* TODO: find suit sets in shop */
         let line1_cell: string, line2_cell: string;
         line1_cell = `<ASCharaIcon id=${member_master_id} w=80/>`;
@@ -775,25 +1008,35 @@ const live_base_info_gen = async (live_id: number) => {
         else
             line2_cell = null;
         return { line0_cell: position.toString() + (is_center ? " (Center)" : ""), line1_cell, line2_cell };
-    });
-    return `<ASImg id=${jacket} w=256/>
+    }).filter(({ line0_cell }) => line0_cell);
 
-<strong>歌曲名称</strong>：{{ja|${name}}}
+    console.log(name, duration_sec_fixed2 ? (duration_sec_fixed2 + "秒") : "未知");
+    const text = `<div class=base-info>
+<ASImg id=${jacket} w=256/>
 
+<strong>{{ja|${name}}}</strong>
+
+<div>
 <strong>所属团队</strong>：${{ 1: "μ's", 2: "Aqours", 3: "虹咲学园学园偶像同好会", 4: "Liella!" }[member_group]}
 
 <strong>是否有3D MV</strong>：${is_2d_live ? "无" : "有"}
 
-<strong>演唱者站位和衣装</strong>：
+<strong>SIFAS版本歌曲时长</strong>：${duration_sec_fixed2 ? (duration_sec_fixed2 + "秒") : "未知"}
+
+{{LiveUnlockMethod|${live_id}}}
+</div>
 
 {| class="wikitable" style="text-align:center"
 |-
-! ${member_mapping_texts.map(a => a.line0_cell).filter(a => a).join(" \n! ")} 
+! ${member_mapping_texts.map(a => a.line0_cell).join(" \n! ")} 
 |-
-| ${member_mapping_texts.map(a => a.line1_cell).filter(a => a).join(" \n| ")} 
+| ${member_mapping_texts.map(a => a.line1_cell).join(" \n| ")} 
 ${member_mapping_texts.map(a => a.line2_cell).filter(a => a).join(" \n| ").length ? `|-
-| ${member_mapping_texts.map(a => a.line2_cell).filter(a => a).join(" \n| ")} 
-` : ""}|}`;
+| ${member_mapping_texts.map(a => a.line2_cell).join(" \n| ")} 
+` : ""}|}
+
+</div>`;
+    return { live_id, text, center_count };
     //
     //<strong>SIFAS版本歌曲时间</strong>：${duration_sec_fixed2 + "秒" || "未知"}
 };
